@@ -24,7 +24,6 @@ prices_current <- crypto_prices()
 ## not clear on advantage
 price_ts_top <- crypto_xts(data_hist_top, "week")
 
-## NOT TESTED BY JY YET
 # Get timeseries market data for token for displaying in charts
 price_ts_specific <- crypto_timeseries('bitcoin')
 ## chart

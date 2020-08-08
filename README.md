@@ -6,9 +6,14 @@
 
 R packages frequently referenced for getting and analyzing stock market and related financial trading data:
 
-* quantmod: well-known package for financial data retrieval and modeling
-* xts: time series modeling
+* **quantmod**: well-known package for financial data retrieval and modeling; more info: http://www.quantmod.com/
+* **xts**: time series modeling; more info: https://joshuaulrich.github.io/xts/index.html
+* **PerformanceAnalytics**: correlations, etc
+* **TTR**: technical analysis
+* **tidyquant**: not cited as much as those above, as it mainly leverages them in effort to integrate financial market analysis into the tidyverse; does not appear to be part of the 'official' tidyverse set of pkgs 
 
+Beyond that, there is comprehensive list of packages here:
+https://cran.r-project.org/web/views/Finance.html
 
 ### Crypto currency exploration
 

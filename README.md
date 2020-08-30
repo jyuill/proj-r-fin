@@ -1,11 +1,5 @@
 # proj-r-fin
 
-
-## General finance/investment exploration
-
-
-## Crypto currency exploration
-
 ## Working with stock market and other financial data
 
 ### Best R packages

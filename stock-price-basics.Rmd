@@ -1,0 +1,217 @@
+---
+title: "Stock-performance-basic"
+author: "John Yuill"
+date: "August 29, 2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      message=FALSE,
+                      warning=FALSE)
+
+library(tidyverse)
+library(lubridate)
+library(scales)
+
+library(xts)
+library(zoo)
+library(quantmod)
+library(dygraphs)
+
+## theme set for ggplot
+theme_set(theme_light())
+```
+
+## Get price data
+
+Getting daily price data for any stock is as easy as using quantmod package and getSymbols function.
+
+```{r}
+getSymbols("CSIQ")
+
+```
+
+Entire history of the daily stock price (at least going back to 2007) is now available in an xts object named after the stock symbol. 
+
+Provides daily Open, High, Low, Close, Volume, Adjusted (aka OHLCVA):
+
+```{r}
+## show first rows 
+head(CSIQ)
+## show last rows
+tail(CSIQ)
+```
+
+"Adjusted" = prices adjusted for stock splits and dividends (possibly other developments? major new issues? buy-backs?)
+
+### Filter for time period
+
+* When importing: specific period (start date and end date)
+
+```{r}
+getSymbols("CSIQ", from="2018-01-01", to=Sys.Date())
+CSIQ_2018 <- CSIQ
+
+head(CSIQ_2018)
+
+## reset full CSIQ for later
+getSymbols("CSIQ")
+```
+
+* filter after import
+
+```{r}
+CSIQ_2020 <- CSIQ['2020-01-01/'] ## from specified date fwd
+CSIQ_90d <- tail(CSIQ, n=90) ## last n 
+
+## selected period
+CSIQ_Aug <- CSIQ['2020-08/2020-08-31'] ## Aug 1-31
+```
+
+
+
+## Visualize 
+
+Dygraphs pkg enables interactive charts designed to work with quantmod right out of the boox.
+
+### Basic line chart
+
+* chart_Series 
+* dygraph
+
+```{r}
+## basic chart_Series from quantmod
+chart_Series(OHLC(CSIQ))
+## use dygraphs pkg
+dygraph(OHLC(CSIQ))
+
+```
+
+* with volume
+
+```{r}
+barChart(CSIQ)
+```
+
+* closing price only
+
+```{r}
+chart_Series(Cl(CSIQ))
+```
+
+```{r}
+
+```
+
+
+### Get multiple stocks 
+
+Each imported as separate object
+
+```{r}
+getSymbols(c("NEP","SPWR"))
+## OR
+stocklist <- c("NEP","SPWR","FSLR")
+getSymbols(stocklist)
+```
+
+
+Easily add annotations
+
+```{r}
+graph <- dygraph(OHLC(CSIQ), main="Cdn Solar")
+graph <- dyEvent(graph, "2020-02-21","Start of covid crash",
+                 labelLoc="top")
+graph
+
+```
+
+Show only adjusted close, filtered for 2020
+
+```{r}
+CSIQ_2020 <- CSIQ['2020-01-01/']
+graph <- dygraph(Ad(CSIQ_2020), main="Cdn Solar")
+graph <- dyEvent(graph, "2020-02-21","Start of covid crash",
+                 labelLoc="top")
+graph
+
+```
+
+## Adjusted price
+
+Adjusted price is supposed to adjust for stock splits, while other prices are actual on the trading day.
+
+However...Tesla (TSLA) had a 5-for-1 stock split on Aug 3 dropping price from ~$2,000 to ~$400. Prices collected as of Sep 5, 2020 show post-split throughout.
+
+
+```{r}
+getSymbols("TSLA")
+
+## filter for Aug, pre-split
+TSLA_presplit <- TSLA['2020-08/2020-08-30']
+tail(TSLA_presplit)
+
+```
+
+```{r}
+#chart_Series(OHLC(TSLA))
+dygraph(OHLC(TSLA))
+```
+
+
+## Candlestick
+
+With selected period - in this case, based on recent (suitable up to ~30 days at a time).
+
+```{r}
+CSIQ_recent <- tail(CSIQ, n=30)
+graph <- dygraph(OHLC(CSIQ_recent))
+dyCandlestick(graph)
+
+```
+
+* Open is either bottom of green bar OR top of red bar
+* High is highest point (either line or top of bar)
+* Low is lowest point (either line or bottom of bar)
+* Close is either top of green bar OR bottom of red bar
+
+## Add Technical features
+
+* MACD: moving average convergence divergence signals
+* BBands: Bollinger bands
+* other features are available in quantmod (not shown)
+
+```{r}
+chart_Series(OHLC(CSIQ_2020))
+add_MACD() 
+add_BBands()
+```
+
+## Get Returns
+
+```{r}
+CSIQ_90d_return <- dailyReturn(CSIQ_90d)
+dygraph(CSIQ_90d_return)
+```
+
+### Stats on returns
+
+```{r}
+
+summary(CSIQ_90d_return)
+sum(CSIQ_90d_return)
+
+ggplot(CSIQ_90d_return, aes(x=CSIQ_90d_return))+geom_histogram()+
+  geom_vline(xintercept = median(CSIQ_90d_return))+
+  geom_vline(xintercept = quantile(CSIQ_90d_return, 0.2))+
+  geom_vline(xintercept = quantile(CSIQ_90d_return, 0.8))+
+  scale_y_continuous(expand=c(0,0))+
+  scale_x_continuous(labels=percent)+
+  labs(title="Daily returns over the period", 
+       subtitle='Lines: 20th percentile, Median, 80th percentile',
+       x='Daily % chg')
+
+```
+
+## aggregate time periods

@@ -69,7 +69,17 @@ CSIQ_90d <- tail(CSIQ, n=90) ## last n
 CSIQ_Aug <- CSIQ['2020-08/2020-08-31'] ## Aug 1-31
 ```
 
+* filter with first and last functions in xts
 
+```{r}
+## data in last 3 months (calendar mths, data so far)
+CSIQ_3_mth <- last(CSIQ, "3 months" )
+## combine first & last to get: first week from last (mont recent) year
+## - includes the days of week 1 in the year
+CSIQ_first_week <- first(last(CSIQ, "1 year"), "1 week")
+```
+
+More Time Series Manipulation examples with xts below in separate section.
 
 ## Visualize 
 
@@ -178,14 +188,18 @@ dyCandlestick(graph)
 
 ## Add Technical features
 
+* SMA: simple moving average
 * MACD: moving average convergence divergence signals
 * BBands: Bollinger bands
 * other features are available in quantmod (not shown)
 
 ```{r}
-chart_Series(OHLC(CSIQ_2020))
+chart_Series(OHLC(CSIQ), subset='2019-12/2020-07')
+add_SMA(n=30, col='blue')
+add_SMA(n=7, col='green')
 add_MACD() 
 add_BBands()
+addMomentum()
 ```
 
 ## Get Returns
@@ -213,5 +227,38 @@ ggplot(CSIQ_90d_return, aes(x=CSIQ_90d_return))+geom_histogram()+
        x='Daily % chg')
 
 ```
+
+## Time Series Manipulation
+
+Leverage xts to work with time series objects
+
+### End points by period
+
+* day, week, month, qtr, yr
+* will include the last item available in the last per
+
+```{r}
+## get index number of last day of each year
+index_yr <- endpoints(CSIQ, on="years")
+## apply to time series to extract selected end points
+CSIQ_yr_end <- CSIQ[index_yr]
+head(CSIQ_yr_end[,c(2,3,5)]) ## selected cols for space
+
+```
+
+```{r}
+index_week_end <- endpoints(CSIQ_Aug, on="weeks")
+CSIQ_Aug[index_week_end, 1:4] ## open, high, low, close selected
+```
+
+### Split into periods
+
+```{r}
+## split data into weeks
+CSIQ_Aug_weeks <- split(CSIQ_Aug, f='weeks')
+## second week: high, low, close selected
+CSIQ_Aug_weeks[[2]][,2:4]
+```
+
 
 ## aggregate time periods

@@ -2,7 +2,12 @@
 title: "Stock-performance-basic"
 author: "John Yuill"
 date: "August 29, 2020"
-output: html_document
+output: 
+  html_document:
+    toc: true
+    toc_depth: 3
+    toc_float:
+      toc_collapsed: true
 ---
 
 ```{r setup, include=FALSE}
@@ -28,7 +33,7 @@ theme_set(theme_light())
 Getting daily price data for any stock is as easy as using quantmod package and getSymbols function.
 
 ```{r}
-getSymbols("CSIQ")
+getSymbols("CSIQ", auto.assign=TRUE) ## auto.assign=TRUE saves object; FALSE prints out data
 
 ```
 
@@ -50,13 +55,13 @@ tail(CSIQ)
 * When importing: specific period (start date and end date)
 
 ```{r}
-getSymbols("CSIQ", from="2018-01-01", to=Sys.Date())
+getSymbols("CSIQ", from="2018-01-01", to=Sys.Date(), auto.assign = TRUE)
 CSIQ_2018 <- CSIQ
 
 head(CSIQ_2018)
 
 ## reset full CSIQ for later
-getSymbols("CSIQ")
+getSymbols("CSIQ", auto.assign = TRUE)
 ```
 
 * filter after import
@@ -88,11 +93,16 @@ Dygraphs pkg enables interactive charts designed to work with quantmod right out
 ### Basic line chart
 
 * chart_Series 
-* dygraph
 
-```{r}
+```{r CHART_SERIES_ONE}
 ## basic chart_Series from quantmod
 chart_Series(OHLC(CSIQ))
+
+```
+
+* dygraph
+
+```{r DYGRAPH_ONE}
 ## use dygraphs pkg
 dygraph(OHLC(CSIQ))
 
@@ -107,23 +117,20 @@ barChart(CSIQ)
 * closing price only
 
 ```{r}
-chart_Series(Cl(CSIQ))
-```
-
-```{r}
+# chart_Series(Cl(CSIQ)) #chart_Series seems to sometimes cause probs with pandoc(?)
+dygraph(Cl(CSIQ))
 
 ```
-
 
 ### Get multiple stocks 
 
 Each imported as separate object
 
 ```{r}
-getSymbols(c("NEP","SPWR"))
+getSymbols(c("NEP","SPWR"), auto.assign = TRUE)
 ## OR
 stocklist <- c("NEP","SPWR","FSLR")
-getSymbols(stocklist)
+getSymbols(stocklist, aauto.assign = TRUE)
 ```
 
 
@@ -156,7 +163,7 @@ However...Tesla (TSLA) had a 5-for-1 stock split on Aug 3 dropping price from ~$
 
 
 ```{r}
-getSymbols("TSLA")
+getSymbols("TSLA", auto.assign = TRUE)
 
 ## filter for Aug, pre-split
 TSLA_presplit <- TSLA['2020-08/2020-08-30']
@@ -230,12 +237,15 @@ ggplot(CSIQ_90d_return, aes(x=CSIQ_90d_return))+geom_histogram()+
 
 ## Time Series Manipulation
 
-Leverage xts to work with time series objects
+Leverage xts to work with time series objects (probably warrants its own file)
 
 ### End points by period
 
-* day, week, month, qtr, yr
-* will include the last item available in the last per
+* day, week, month, qtr, yr.
+* returns the locations of each last item in the specified type of period, aligned on calendar.
+* will include the last item available in the last period (last data point).
+* returns a vector starting with 0 and ending with the extent (last row) of your data.
+* can also use k to skip: on='years', k=4 returns location of every 4th yr in data (plus last)
 
 ```{r}
 ## get index number of last day of each year
@@ -251,14 +261,46 @@ index_week_end <- endpoints(CSIQ_Aug, on="weeks")
 CSIQ_Aug[index_week_end, 1:4] ## open, high, low, close selected
 ```
 
+### Summarization
+
+```{r}
+##
+period.apply(CSIQ_Aug, INDEX=index_week_end, FUN=mean)
+
+```
+
+### Shortcut summarization
+
+```{r}
+## apply.weekly, apply.monthly, apply.quarterly, apply.yearly to summarize
+## FUN=<whatever summarization function for the period)
+apply.weekly(CSIQ_Aug, FUN=mean)
+```
+
+
 ### Split into periods
 
 ```{r}
-## split data into weeks
+## split data into weeks - chunk the data into 'week' components, without summarizing
 CSIQ_Aug_weeks <- split(CSIQ_Aug, f='weeks')
 ## second week: high, low, close selected
 CSIQ_Aug_weeks[[2]][,2:4]
 ```
 
+## Aggregate time periods
 
-## aggregate time periods
+* Aggregate data by period
+* Can take a single variable and calculate OHLC statistics by period
+
+```{r}
+CSIQ_yearly <- to.period(CSIQ[,6], period='years', name='CSIQ_adj', OHLC=TRUE)
+CSIQ_yearly
+```
+
+### Shortcut aggregation
+
+```{r}
+CSIQ_2020_mth_agg <- to.monthly(CSIQ_2020[,6], name='CSIQ_adj')
+CSIQ_2020_mth_agg
+```
+

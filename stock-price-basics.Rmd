@@ -22,6 +22,7 @@ library(scales)
 library(xts)
 library(zoo)
 library(quantmod)
+library(Quandl)
 library(dygraphs)
 
 ## theme set for ggplot
@@ -32,12 +33,18 @@ theme_set(theme_light())
 
 Getting daily price data for any stock is as easy as using quantmod package and getSymbols function.
 
+* fetches data as xts time series object
+* note src and updated in str output 
+
 ```{r}
 getSymbols("CSIQ", auto.assign=TRUE) ## auto.assign=TRUE saves object; FALSE prints out data
-
+str(CSIQ)
 ```
 
 Entire history of the daily stock price (at least going back to 2007) is now available in an xts object named after the stock symbol. 
+
+* default source is yahoo finance (src='yahoo')
+* default start date is '2007-01-01' (from='2007-01-01')
 
 Provides daily Open, High, Low, Close, Volume, Adjusted (aka OHLCVA):
 
@@ -49,6 +56,17 @@ tail(CSIQ)
 ```
 
 "Adjusted" = prices adjusted for stock splits and dividends (possibly other developments? major new issues? buy-backs?)
+
+### Incl. TSX
+
+* Includes stocks on TSX
+* Optionally import into specified object.
+* Specify src from variety of available data sources
+
+```{r}
+## specify object with auto.assign=FALSE
+ogi <- getSymbols(Symbols='OGI.TO', auto.assign=FALSE, src='yahoo')
+```
 
 ### Filter for time period
 
@@ -62,6 +80,7 @@ head(CSIQ_2018)
 
 ## reset full CSIQ for later
 getSymbols("CSIQ", auto.assign = TRUE)
+
 ```
 
 * filter after import
@@ -85,6 +104,45 @@ CSIQ_first_week <- first(last(CSIQ, "1 year"), "1 week")
 ```
 
 More Time Series Manipulation examples with xts below in separate section.
+
+### Get multiple stocks 
+
+Each imported as separate object
+
+```{r}
+getSymbols(c("NEP","SPWR"), auto.assign = TRUE)
+## OR
+stocklist <- c("NEP","SPWR","FSLR")
+getSymbols(stocklist, aauto.assign = TRUE)
+
+```
+
+### Merge multiple stocks
+
+* use merge function to join cols
+* max 2 data sets at a time, unless use do.call
+
+```{r}
+## TWO AT A TIME
+## first two
+renewables <- merge(NEP, SPWR, join='outer', fill=NA)
+head(renewables)
+## add another one
+renewables <- merge(renewables, FSLR, join='outer', fill=NA)
+head(renewables)
+
+## MULTIPLE (2+) AT A TIME
+## set list of symbols
+stockrenew <- c("BEP","TERP","VSLR")
+## set up a new environment to hold the imported data
+data_env <- new.env()
+## get symbols
+getSymbols(Symbols=stockrenew, env=data_env, auto.assign=TRUE)
+## create list of objects within the environment
+data_list <- lapply(data_env, Cl) ## apply function: Cl=close; OHLCV (not sure how to get all)
+renewables2 <- do.call(merge, data_list)
+head(renewables2)
+```
 
 ## Visualize 
 
@@ -121,18 +179,6 @@ barChart(CSIQ)
 dygraph(Cl(CSIQ))
 
 ```
-
-### Get multiple stocks 
-
-Each imported as separate object
-
-```{r}
-getSymbols(c("NEP","SPWR"), auto.assign = TRUE)
-## OR
-stocklist <- c("NEP","SPWR","FSLR")
-getSymbols(stocklist, aauto.assign = TRUE)
-```
-
 
 Easily add annotations
 
@@ -302,5 +348,20 @@ CSIQ_yearly
 ```{r}
 CSIQ_2020_mth_agg <- to.monthly(CSIQ_2020[,6], name='CSIQ_adj')
 CSIQ_2020_mth_agg
+```
+
+## Quandl for Importing
+
+Claims 'the world's most powerful data lives on [Quandl](https://www.quandl.com/). See also: [Quandl API documentation](https://docs.quandl.com/docs/getting-started).
+
+* Economic data and similar
+* Specify Source/Symbol
+* Several 'types' available: deflaut is data.frame
+* Does not appear that you can access stock prices without account/payment :(
+
+```{r}
+us_gdp <- Quandl(code='FRED/GDP')
+
+ggplot(us_gdp, aes(x=Date, y=Value))+geom_line()
 ```
 

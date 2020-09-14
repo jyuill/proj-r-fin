@@ -8,6 +8,7 @@ R packages frequently referenced for getting and analyzing stock market and rela
 
 * **quantmod**: well-known package for financial data retrieval and modeling; more info: http://www.quantmod.com/
 * **xts**: time series modeling; more info: https://joshuaulrich.github.io/xts/index.html
+* **Quandl**: importing financial data from [Quandl database](https://www.quandl.com/), basic manipulation. 
 * **PerformanceAnalytics**: correlations, etc
 * **TTR**: technical analysis
 * **forecast**: an option for time series forcasting
@@ -21,6 +22,7 @@ https://cran.r-project.org/web/views/Finance.html
 
 * [Technical Analysis with R](https://bookdown.org/kochiuyu/Technical-Analysis-with-R/): online book in bookdown format
 * [xts cheat sheet](https://www.datacamp.com/community/blog/r-xts-cheat-sheet)
+* [Quandl API guide](https://docs.quandl.com/docs/getting-started)
 
 ## Crypto currency exploration
 

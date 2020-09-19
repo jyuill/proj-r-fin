@@ -350,6 +350,33 @@ CSIQ_2020_mth_agg <- to.monthly(CSIQ_2020[,6], name='CSIQ_adj')
 CSIQ_2020_mth_agg
 ```
 
+
+### Merging data with difference frequencies
+
+```{r}
+## get data -> DFF is daily Fed rate, FEDFUNDS is monthly
+getSymbols(Symbols=c("FEDFUNDS","DFF"), src="FRED" )
+
+head(DFF) ## daily data 
+head(FEDFUNDS) ## mthly data
+
+
+```
+
+```{r}
+## aggregate DFF to monthly by average
+DFF_monthly <- apply.monthly(DFF, FUN=mean) ## FUN=aggregation calc
+head(DFF_monthly) ## date as of end of month
+
+## convert to monthly index
+index(DFF_monthly) <- as.yearmon(index(DFF_monthly))
+
+## mow can merge with data sets that have first of month
+merged_funds <- merge(FEDFUNDS, DFF_monthly)
+head(merged_funds)
+```
+
+
 ## Quandl for Importing
 
 Claims 'the world's most powerful data lives on [Quandl](https://www.quandl.com/). See also: [Quandl API documentation](https://docs.quandl.com/docs/getting-started).

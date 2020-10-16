@@ -9,7 +9,7 @@ R packages frequently referenced for getting and analyzing stock market and rela
 * **quantmod**: well-known package for financial data retrieval and modeling; more info: http://www.quantmod.com/
 * **xts**: time series modeling; more info: https://joshuaulrich.github.io/xts/index.html
 * **Quandl**: importing financial data from [Quandl database](https://www.quandl.com/), basic manipulation. 
-* **PerformanceAnalytics**: correlations, etc
+* **PerformanceAnalytics**: correlations, portfolio returns, etc
 * **TTR**: technical analysis
 * **forecast**: an option for time series forcasting
 * **tidyquant**: not cited as much as those above, as it mainly leverages them in effort to integrate financial market analysis into the tidyverse; does not appear to be part of the 'official' tidyverse set of pkgs 

@@ -1,0 +1,35 @@
+---
+title: "S&P 500"
+author: "JY"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      message=FALSE,
+                      warning=FALSE)
+
+library(quantmod) ## includes zoo (which includes xts)
+library(PerformanceAnalytics)
+library(tidyverse)
+library(lubridate)
+library(scales)
+```
+
+## Get Bitcoin data
+
+* Cdn dollar value
+
+```{r}
+btc <- getSymbols(Symbols="BTC-CAD", auto.assign=FALSE)
+head(sp500)
+```
+
+## Take a look
+
+```{r}
+## basic chart_Series from quantmod
+chart_Series(Cl(btc))
+```
+

@@ -1,0 +1,152 @@
+---
+title: "S&P 500"
+author: "John Yuill"
+date: "`Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      message=FALSE,
+                      warning=FALSE)
+
+library(quantmod) ## includes zoo (which includes xts)
+library(PerformanceAnalytics)
+library(tidyverse)
+library(lubridate)
+library(scales)
+```
+
+## Get S&P 500 data
+
+* Set start date to go back in history earlier than default
+
+```{r}
+sp500 <- getSymbols(Symbols="^GSPC", from="1990-01-01", auto.assign=FALSE)
+head(sp500)
+```
+
+## Take a look
+
+### Price trends
+
+```{r}
+## basic chart_Series from quantmod
+chart_Series(Cl(sp500))
+```
+
+### Monthly Returns
+
+```{r}
+sp500_mth <- to.monthly(sp500)
+
+sp500_mth_ret <- Return.calculate(sp500_mth$sp500.Close)
+
+chart_Series(sp500_mth_ret)
+```
+
+## Analyse Monthly Returns
+
+```{r}
+sp500_mth_ret_ave <- mean.geometric(sp500_mth_ret)
+
+sp500_mth_ret_stdev <- StdDev(sp500_mth_ret) ## StdDev from PerformanceAnalytics
+
+
+```
+
+Ave mthly return (geometric): `r sp500_mth_ret_ave` <br />
+Std dev mthly return: `r sp500_mth_ret_stdev`
+
+### Sharpe ratio
+
+* different calc methods with similar but not same results
+
+```{r}
+## set risk free rate for comparison
+rfrate <- 0.03 ## annual
+sp500_yr <- to.yearly(sp500) ## convert daily to annual
+sp500_yr_ret <- Return.calculate(sp500_yr[,4]) ## calculate returns based on annual close
+## get ave anual return
+sp500_yr_ret_ave <- mean.geometric(sp500_yr_ret)
+sp500_yr_ret_ave
+## get annual return std dev
+sp500_yr_ret_sd <- StdDev(sp500_yr_ret)
+sp500_yr_ret_sd
+
+## calc sharpe ratio
+## on annual data
+sh_ratio <- (sp500_yr_ret_ave-rfrate)/sp500_yr_ret_sd
+sh_ratio
+## annualized based on mthly data using Performance Analytics
+table.AnnualizedReturns(sp500_mth_ret, Rf=rfrate/12, scale=12)
+## annualized based on daily data
+sp500_ret <- Return.calculate(sp500[,4])
+table.AnnualizedReturns(sp500_ret, Rf=rfrate/252, scale=252)
+```
+
+### Rolling returns
+
+```{r}
+## convert daily to monthly again, this time set index to last day of mth
+## needed for rolling charts (otherwise index is Jan 1990, Feb 1990, etc)
+sp500_mth2 <- to.monthly(sp500, indexAt='lastof')
+sp500_mth2_ret <- Return.calculate(sp500_mth2[,4])
+
+# Plotting the 12-month rolling annualized mean from monthly data
+chart.RollingPerformance(R = sp500_mth2_ret, width = 12, FUN = "Return.annualized")
+```
+
+### Windows for Specific Date Ranges
+
+```{r}
+#sp500 <- sp500_2009
+sp500_2008 <- sp500["2008-01-01/2008-12-31"]
+chart_Series(sp500_2008$GSPC.Close)
+
+sp500_2019 <- sp500["2019-01-01/2019-12-31"]
+chart_Series(sp500_2019$GSPC.Close)
+```
+
+
+```{r}
+sp500_ret_2008 <- window(sp500_ret, start="2008-01-01", end="2008-12-31")
+sp500_ret_2019 <- window(sp500_ret, start="2019-01-01", end="2019-12-31")
+
+chart_Series(sp500_ret_2008)
+chart_Series(sp500_ret_2019)
+
+# Plotting settings
+par(mfrow = c(1, 2) , mar=c(3, 2, 2, 2))
+names(sp500_ret_2008) <- "sp500_2008"
+names(sp500_ret_2019) <- "sp500_2019"
+
+## Histograms from PerformanceAnalytics
+# Plot histogram of 2008
+chart.Histogram(sp500_ret_2008, methods=c('add.density', 'add.normal'))
+
+# Plot histogram of 2014
+chart.Histogram(sp500_ret_2019, methods=c('add.density', 'add.normal'))
+
+```
+
+### Skewness and Kurtosis
+
+* Skewness tells us if the distribution is skewed away from normal; negative skewness indicates longer tail on the negative side (left skew)
+* Kurtosis tells us if the tails are fatter than normal curve, indicating higher likelihood of results outside the range (in std dev) than are present in normal distribution; highlights volatility
+
+```{r}
+sk2008 <- skewness(sp500_ret_2008)
+sk2019 <- skewness(sp500_ret_2019)
+
+krt2008 <- kurtosis(sp500_ret_2008)
+krt2019 <- kurtosis(sp500_ret_2019)
+```
+
+Skewness: <br />
+2008: `r sk2008` <br />
+2019: `r sk2019` 
+
+Kurtosis: <br />
+2008: `r krt2008` <br />
+2019: `r krt2019`

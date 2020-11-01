@@ -1,5 +1,5 @@
 ---
-title: "S&P 500"
+title: "Crytpo Currency Exploration"
 author: "JY"
 date: "`r Sys.Date()`"
 output: html_document
@@ -23,13 +23,73 @@ library(scales)
 
 ```{r}
 btc <- getSymbols(Symbols="BTC-CAD", auto.assign=FALSE)
-head(sp500)
+summary(btc)
 ```
 
-## Take a look
+### Take a look
 
 ```{r}
 ## basic chart_Series from quantmod
 chart_Series(Cl(btc))
+```
+
+```{r}
+btc45d <- tail(btc, n=45)
+summary(btc45d[,1:4])
+chart_Series(btc45d)
+```
+
+
+## Get Ethereum data
+
+```{r}
+eth <- getSymbols(Symbols="ETH-CAD", auto.assign=FALSE)
+summary(eth)
+```
+
+### Take a look
+
+```{r}
+## basic chart_Series from quantmod
+chart_Series(Cl(eth))
+```
+
+### Zoom in recent periods
+
+* 90d
+
+```{r}
+eth90d <- tail(eth, n=90)
+summary(eth90d[,1:4])
+```
+
+```{r}
+chart_Series(eth90d)
+```
+
+* 45d
+
+```{r}
+eth45d <- tail(eth, n=45)
+summary(eth45d[,1:4])
+chart_Series(eth45d)
+```
+
+
+## Correlation: BTC, ETH
+
+* since beginning 2017
+
+```{r}
+kryptos <- merge(btc, eth, join='outer', fill=NA)
+kryptos2017 <- kryptos['2017-01-01/'] 
+```
+
+```{r}
+chart_Series(kryptos[,c(4,8)])
+```
+
+```{r}
+chart.Correlation(kryptos[,c(4,8)], histogram=TRUE)
 ```
 

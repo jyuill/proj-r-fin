@@ -15,6 +15,9 @@ library(PerformanceAnalytics)
 library(tidyverse)
 library(lubridate)
 library(scales)
+library(dygraphs)
+
+theme_set(theme_light())
 ```
 
 ## Get Bitcoin data
@@ -90,6 +93,124 @@ chart_Series(kryptos[,c(4,8)])
 ```
 
 ```{r}
-chart.Correlation(kryptos[,c(4,8)], histogram=TRUE)
+kryptos_all <- kryptos
+kryptos <- kryptos["2017-01-01/"]
+chart.Correlation(kryptos[,c(4,10)], histogram=TRUE)
+```
+
+### Explore Correlation
+
+```{r}
+df_kryptos <- as.data.frame(kryptos)
+df_kryptos$date <- row.names(df_kryptos)
+df_kryptos %>% ggplot(aes(x=BTC.CAD.Close, y=ETH.CAD.Close))+geom_point()
+```
+
+```{r}
+df_kryptos <- df_kryptos %>% mutate(
+  yr=year(date),
+  mth=month(date)
+)
+```
+
+```{r}
+df_kryptos %>% ggplot(aes(x=BTC.CAD.Close, y=ETH.CAD.Close, color=as.factor(yr)))+geom_point()
+```
+
+Correlations vary by year. Of most relevance in most recent yr correlation.
+
+#### 2020
+
+```{r}
+df_kryptos %>% filter(date>='2020-01-01') %>%
+  ggplot(aes(x=BTC.CAD.Close, y=ETH.CAD.Close))+geom_point()+
+  geom_smooth(method='lm')
+```
+
+#### By Month
+
+```{r}
+df_kryptos %>% filter(date>='2020-01-01') %>%
+  ggplot(aes(x=BTC.CAD.Close, y=ETH.CAD.Close, color=as.factor(mth)))+geom_point()+
+  geom_smooth(method='lm')
+```
+
+```{r}
+df_kryptos %>% filter(date>='2020-01-01') %>%
+  ggplot(aes(x=BTC.CAD.Close, y=ETH.CAD.Close))+geom_point(aes(color=as.factor(mth)))+
+  geom_smooth(method='lm')
+```
+
+```{r}
+df_kryptos_2020 <- df_kryptos %>% filter(date>='2020-01-01')
+chart.Correlation(df_kryptos_2020[,c(2,3,4,5,8,9,10,11)], histogram=TRUE)
+
+```
+
+## Distribution
+
+### Prices 
+
+#### BTC
+
+```{r}
+df_kryptos_2020 %>% ggplot(aes(x=as.factor(mth), y=BTC.CAD.Close))+geom_boxplot()
+```
+
+#### ETH
+
+```{r}
+df_kryptos_2020 %>% ggplot(aes(x=as.factor(mth), y=ETH.CAD.Close))+geom_boxplot()
+```
+
+### Returns
+
+#### BTC
+
+```{r}
+kryptos2020 <- kryptos_all["2020-01-01/2020-12-31"]
+kryptos2020_btc_ret <- dailyReturn(kryptos2020$BTC.CAD.Close)
+dygraph(kryptos2020_btc_ret)
+```
+
+#### ETH
+
+```{r}
+kryptos2020 <- kryptos_all["2020-01-01/2020-12-31"]
+kryptos2020_eth_ret <- dailyReturn(kryptos2020$ETH.CAD.Close)
+dygraph(kryptos2020_eth_ret)
+```
+
+#### Combined
+
+```{r}
+kryptos2020_ret <- merge(kryptos2020_btc_ret, kryptos2020_eth_ret, join='outer', fill=NA)
+
+dygraph(kryptos2020_ret)
+```
+
+```{r}
+## convert to data frame for scatterplots etc
+df_kryptos_2020_ret <- as.data.frame(kryptos2020_ret)
+colnames(df_kryptos_2020_ret) <- c("BTC_ret","ETH_ret")
+
+```
+
+```{r}
+ggplot(df_kryptos_2020_ret, aes(x=BTC_ret, y=ETH_ret))+geom_point()+
+  geom_smooth(method='lm')
+
+df_kryptos_2020_ret %>% ggplot(aes(x=BTC_ret))+geom_histogram()+
+  geom_vline(xintercept=sd(df_kryptos_2020_ret$BTC_ret))+
+  geom_vline(xintercept=0-sd(df_kryptos_2020_ret$BTC_ret))
+
+df_kryptos_2020_ret %>% ggplot(aes(x=ETH_ret))+geom_histogram()+
+  geom_vline(xintercept=sd(df_kryptos_2020_ret$ETH_ret))+
+  geom_vline(xintercept=0-sd(df_kryptos_2020_ret$ETH_ret))+
+  geom_vline(xintercept=mean((df_kryptos_2020_ret$ETH_ret)))+
+  geom_text(aes(label=sd(ETH_ret)), x=sd(df_kryptos_2020_ret$ETH_ret), y=50, hjust=0)+
+  geom_text(aes(label=mean(ETH_ret)),
+            x=mean(df_kryptos_2020_ret$ETH_ret), y=70, hjust=0)
+
 ```
 

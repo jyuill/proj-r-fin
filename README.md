@@ -14,6 +14,7 @@ R packages frequently referenced for getting and analyzing stock market and rela
 * **forecast**: an option for time series forcasting
 * **tidyquant**: not cited as much as those above, as it mainly leverages them in effort to integrate financial market analysis into the tidyverse; does not appear to be part of the 'official' tidyverse set of pkgs 
 * **dygraphs**: data viz with finance-oriented functions
+* **PortfolioAnalytics**: advanced portfolio analysis and optimization; more info: [Pkg vignette](https://cran.r-project.org/web/packages/PortfolioAnalytics/PortfolioAnalytics.pdf), [Intro to PortfolioAnalytics vignette](https://cran.r-project.org/web/packages/PortfolioAnalytics/vignettes/portfolio_vignette.pdf)
 
 Beyond that, there is comprehensive list of packages here:
 https://cran.r-project.org/web/views/Finance.html

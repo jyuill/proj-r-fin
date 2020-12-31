@@ -201,23 +201,31 @@ ggplot(df_kryptos_2020_ret, aes(x=BTC_ret, y=ETH_ret))+geom_point()+
   geom_smooth(method='lm')
 
 df_kryptos_2020_ret %>% ggplot(aes(x=BTC_ret))+geom_histogram()+
-  geom_vline(xintercept=sd(df_kryptos_2020_ret$BTC_ret))+
-  geom_vline(xintercept=0-sd(df_kryptos_2020_ret$BTC_ret))
+  geom_vline(xintercept=sd(df_kryptos_2020_ret$BTC_ret), color='blue')+
+  geom_vline(xintercept=mean(df_kryptos_2020_ret$BTC_ret), color='green')+
+  geom_vline(xintercept=0-sd(df_kryptos_2020_ret$BTC_ret), color='blue')+
+  geom_text(aes(label=round(sd(BTC_ret),3)), color='blue', 
+                x=sd(df_kryptos_2020_ret$BTC_ret), y=70, hjust= -0.1)+
+  geom_text(aes(label=round(mean(BTC_ret),3)), color='blue',
+            x=mean(df_kryptos_2020_ret$BTC_ret), y=100, hjust= -0.2)
 
 df_kryptos_2020_ret %>% ggplot(aes(x=ETH_ret))+geom_histogram()+
-  geom_vline(xintercept=sd(df_kryptos_2020_ret$ETH_ret))+
-  geom_vline(xintercept=0-sd(df_kryptos_2020_ret$ETH_ret))+
-  geom_vline(xintercept=mean((df_kryptos_2020_ret$ETH_ret)))+
-  geom_text(aes(label=sd(ETH_ret)), x=sd(df_kryptos_2020_ret$ETH_ret), y=50, hjust=0)+
-  geom_text(aes(label=mean(ETH_ret)),
-            x=mean(df_kryptos_2020_ret$ETH_ret), y=70, hjust=0)
+  geom_vline(xintercept=sd(df_kryptos_2020_ret$ETH_ret), color='blue')+
+  geom_vline(xintercept=0-sd(df_kryptos_2020_ret$ETH_ret), color='blue')+
+  geom_vline(xintercept=mean(df_kryptos_2020_ret$ETH_ret), color='green')+
+  geom_text(aes(label=round(sd(ETH_ret),3)), color='blue', 
+                x=sd(df_kryptos_2020_ret$ETH_ret), y=70, hjust= -0.1)+
+  geom_text(aes(label=round(mean(ETH_ret),3)), color='green',
+            x=mean(df_kryptos_2020_ret$ETH_ret), y=100, hjust= -0.2)
 
 ```
 
 ## MULTIPLE Currencies
 
+### Get data
+
 ```{r}
-ccurrency <- c("BTC-CAD", "ETH-CAD")
+ccurrency <- c("BTC-CAD", "ETH-CAD","LTC-CAD","BCH-CAD")
 
 kryptos_multi <- NULL
 for(c in ccurrency){
@@ -227,5 +235,11 @@ for(c in ccurrency){
                                  auto.assign = FALSE)[,4])
 }
 
+```
+
+### Check correlations
+
+```{r}
+chart.Correlation(kryptos_multi, histogram=TRUE)
 ```
 

@@ -214,3 +214,18 @@ df_kryptos_2020_ret %>% ggplot(aes(x=ETH_ret))+geom_histogram()+
 
 ```
 
+## MULTIPLE Currencies
+
+```{r}
+ccurrency <- c("BTC-CAD", "ETH-CAD")
+
+kryptos_multi <- NULL
+for(c in ccurrency){
+  kryptos_multi <- cbind(kryptos_multi,
+                         getSymbols(Symbols=c, 
+                                 from='2018-01-01', periodicity='daily', 
+                                 auto.assign = FALSE)[,4])
+}
+
+```
+

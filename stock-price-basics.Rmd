@@ -1,7 +1,7 @@
 ---
 title: "Stock-performance-basic"
 author: "John Yuill"
-date: "August 29, 2020"
+date: "`r Sys.Date() `"
 output: 
   html_document:
     toc: true
@@ -143,6 +143,43 @@ data_list <- lapply(data_env, Cl) ## apply function: Cl=close; OHLCV (not sure h
 renewables2 <- do.call(merge, data_list)
 head(renewables2)
 ```
+
+### Multiple - most efficient
+
+Most efficient code for getting multiple stocks at once.
+
+* use cbind to combine cols in separaet object as you go 
+
+```{r}
+## specify stock symbols
+stockrenew3 <- c("ENPH","SEDG","RUN","JKS")
+## set empty object
+renewables3 <- NULL
+## loop through each stock, binding cols as you go
+for(stocks in stockrenew3){
+  renewables3 <- cbind(renewables3,
+                      getSymbols(Symbols=stocks, 
+                                 from='2018-01-01', periodicity='daily', 
+                                 auto.assign = FALSE))
+}
+head(renewables3)
+
+```
+
+* CLOSE only: specify [,4] at end of getSymbols
+
+```{r}
+## get CLOSE only: same as above but SPECIFY [,4] at end
+renewables3c <- NULL
+for(stocks in stockrenew3){
+  renewables3c <- cbind(renewables3c,
+                      getSymbols(Symbols=stocks, 
+                                 from='2018-01-01', periodicity='daily', 
+                                 auto.assign = FALSE)[,4])
+}
+head(renewables3c)
+```
+
 
 ## Visualize 
 

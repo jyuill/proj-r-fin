@@ -1,0 +1,48 @@
+---
+title: "Crypto Returns"
+author: "John Yuill"
+date: "January 10, 2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      message=FALSE,
+                      warning=FALSE)
+
+library(quantmod) ## includes zoo (which includes xts)
+library(PerformanceAnalytics)
+library(tidyverse)
+library(lubridate)
+library(scales)
+library(dygraphs)
+library(here)
+
+theme_set(theme_light())
+```
+
+```{r, IMPORT}
+## IMPORT trade and cost data -> processed in trades_data_import.R
+trade_data <- read_csv(here('data/trades_cost_data.csv'))
+
+## filter for crypto
+crypto_trades <- trade_data %>% filter(str_detect(Symbol, 'BTC|ETH|LTC'))
+  
+```
+
+
+## Total Returns
+
+```{r}
+trade_data_summary <- crypto_trades %>% filter(Action=='Sell') %>% select(
+  Date, Symbol, Action, Price, Units, Currency, Total, acb, unit_gain, total_gain
+) %>% mutate(
+  avg_cost_ttl=Units*acb,
+  roi=Total/avg_cost_ttl-1
+)
+
+
+#trade_data_summary <- data.frame(total_invest=sum(crypto_trades$spend),
+#                                 total_return=sum(crypto_trades$total_gain, na.rm=TRUE)) 
+  
+```

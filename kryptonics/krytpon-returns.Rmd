@@ -6,7 +6,7 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE,
+knitr::opts_chunk$set(echo = FALSE,
                       message=FALSE,
                       warning=FALSE)
 
@@ -17,6 +17,8 @@ library(lubridate)
 library(scales)
 library(dygraphs)
 library(here)
+library(viridis)
+library(gridExtra)
 
 theme_set(theme_light())
 ```
@@ -27,13 +29,14 @@ trade_data <- read_csv(here('data/trades_cost_data.csv'))
 
 ## filter for crypto
 crypto_trades <- trade_data %>% filter(str_detect(Symbol, 'BTC|ETH|LTC'))
+
+
+
   
 ```
 
-
-## Total Returns
-
-```{r}
+```{r, PROCESS}
+## filter for SELL transactions
 trade_data_summary <- crypto_trades %>% filter(Action=='Sell') %>% select(
   Date, Symbol, Action, Price, Units, Currency, Total, acb, unit_gain, total_gain
 ) %>% mutate(
@@ -41,8 +44,74 @@ trade_data_summary <- crypto_trades %>% filter(Action=='Sell') %>% select(
   roi=Total/avg_cost_ttl-1
 )
 
+## summarize by currency
 
-#trade_data_summary <- data.frame(total_invest=sum(crypto_trades$spend),
-#                                 total_return=sum(crypto_trades$total_gain, na.rm=TRUE)) 
-  
+trade_summary_curr <- trade_data_summary %>% group_by(Symbol) %>% summarize(
+  units=sum(Units),
+  ttl_sell=sum(Total),
+  ttl_cost=sum(avg_cost_ttl)
+) %>% mutate(
+  ttl_return=ttl_sell-ttl_cost,
+  roi=ttl_sell/ttl_cost-1
+)
+
 ```
+
+## Total Returns
+
+### Overall Performance 
+
+```{r, fig.height=3, fig.width=6}
+ptr <- ggplot(trade_summary_curr, aes(x=1, y=ttl_return, fill=Symbol))+geom_col()+
+  scale_y_continuous(labels=dollar)+
+  labs(x='ttl returns')+
+  theme(axis.text.x=element_blank(),
+        axis.ticks.x=element_blank())
+
+proi <- ggplot(trade_summary_curr, aes(x=Symbol, y=roi))+geom_col()+
+  scale_y_continuous(labels=percent)
+
+grid.arrange(ptr, proi, nrow=1)
+```
+
+
+```{r}
+trade_summary <- data.frame(total_invest=sum(trade_data_summary$avg_cost_ttl),
+                                 total_return=sum(trade_data_summary$total_gain, na.rm=TRUE))
+trade_summary <- trade_summary %>% mutate(
+  total_roi=total_return/total_invest
+)
+
+trade_summary
+```
+
+
+### Individual trades
+
+```{r, fig.height=3, fig.width=8}
+## create data frame with full range of dates for charting
+trade_dates <- data.frame(Date=seq(from=min(trade_data_summary$Date), 
+                                   to=max(trade_data_summary$Date), by=1))
+trade_dt_summary <- full_join(trade_data_summary, trade_dates, by=('Date'))
+trade_dt_summary <- trade_dt_summary %>% arrange(Date)
+
+## VIZ
+p_amt <- ggplot(trade_dt_summary, aes(x=Date, y=total_gain, fill=Symbol))+geom_col()+
+  #coord_flip()+
+  scale_x_date()+
+  scale_y_continuous(labels=dollar, expand=c(0,0))+
+  scale_fill_viridis_d()+
+  labs(x='')+theme(legend.position='none')
+  
+
+p_pc <- ggplot(trade_dt_summary, aes(x=Date, y=roi, fill=Symbol))+geom_col()+
+  #coord_flip()+
+  scale_x_date()+
+  scale_y_continuous(labels=percent, expand=c(0,0))+
+  scale_fill_viridis_d()+
+  labs(x='')
+
+grid.arrange(p_amt, p_pc, nrow=1)
+```
+
+

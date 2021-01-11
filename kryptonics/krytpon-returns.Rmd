@@ -57,7 +57,7 @@ trade_summary_curr <- trade_data_summary %>% group_by(Symbol) %>% summarize(
 
 ```
 
-## Total Returns
+## Transaction Returns
 
 ### Overall Performance 
 
@@ -114,4 +114,25 @@ p_pc <- ggplot(trade_dt_summary, aes(x=Date, y=roi, fill=Symbol))+geom_col()+
 grid.arrange(p_amt, p_pc, nrow=1)
 ```
 
+## Potential Returns
+
+Potential returns based on:
+
+* Current prices for various currencies
+* Latest average cost for various currencies
+
+```{r}
+
+```
+
+## Value at Risk
+
+Value at Risk for each currency calculated based on:
+
+* 5% likelihood drop in price over 24hrs
+* amount invested
+
+```{r}
+
+```
 

@@ -15,6 +15,7 @@ library(PerformanceAnalytics)
 library(tidyverse)
 library(lubridate)
 library(scales)
+options(scipen = 10)
 ```
 
 ## Get S&P 500 data
@@ -61,6 +62,8 @@ sp500_mth_ret_stdev <- StdDev(sp500_mth_ret) ## StdDev from PerformanceAnalytics
 sp500_mth_min <- min(sp500_mth_ret, na.rm=TRUE)
 sp500_mth_max <- max(sp500_mth_ret, na.rm=TRUE)
 
+## annualized return over whole period
+sp500_ttl_ann_ret <- Return.annualized(sp500_mth_ret, scale=12)
 
 ```
 
@@ -68,6 +71,7 @@ Ave mthly return (geometric): `r sp500_mth_ret_ave` <br />
 Std dev mthly return: `r sp500_mth_ret_stdev` <br />
 Worst mthly return: `r sp500_mth_min` <br />
 Best mthly return: `r sp500_mth_max` <br />
+Annualized mthly return: `r sp500_ttl_ann_ret` <br />
 
 ### Distribution
 
@@ -76,7 +80,7 @@ Best mthly return: `r sp500_mth_max` <br />
 df_sp500_mth_ret <- as.data.frame(sp500_mth_ret)
 df_sp500_mth_ret$mth <- row.names(df_sp500_mth_ret)
 row.names(df_sp500_mth_ret) <- seq(1:nrow(df_sp500_mth_ret))
-oe
+
 ```
 
 ```{r}
@@ -91,14 +95,34 @@ df_sp500_mth_ret %>% ggplot(aes(x=sp500.Close))+geom_histogram()+
   theme_classic()
 ```
 
+#### Skewness / Kurtosis
+
+* Skewness tells us if the distribution is skewed away from normal; negative skewness indicates longer tail on the negative side (left skew)
+* Kurtosis tells us if the tails are fatter than normal curve, indicating higher likelihood of results outside the range (in std dev) than are present in normal distribution; highlights volatility
+
+Chart below shows histogram with several reference points:
+
+* density to enhance histogram (darkest blue)
+* normal curve overlay to show how well fits normal
+* centered normal curve to compare to normal centered on 0 (data is slightly above, which is good)
+* rug accentuates density of distribution
+
+```{r}
+## Histograms from PerformanceAnalytics
+# Plot histogram of 2008
+chart.Histogram(sp500_mth_ret, methods=c('add.density', 'add.normal', 'add.centered','add.rug'))
+```
 
 ### Sharpe ratio
 
+* Sharpe ratio identifies how much excess return you are gaining in exchange for risk (compared to risk-free rate)
+* works best if data is normally distributed
+* ideally want to be above 1: higher the better
 * different calc methods with similar but not same results
 
 ```{r}
 ## set risk free rate for comparison
-rfrate <- 0.03 ## annual
+rfrate <- 0.02 ## annual
 sp500_yr <- to.yearly(sp500) ## convert daily to annual
 sp500_yr_ret <- Return.calculate(sp500_yr[,4]) ## calculate returns based on annual close
 ## get ave anual return
@@ -119,6 +143,8 @@ sp500_ret <- Return.calculate(sp500[,4])
 table.AnnualizedReturns(sp500_ret, Rf=rfrate/252, scale=252)
 ```
 
+Doesn't look good from Sharpe ratio point of view, due to high std dev over time. 
+
 ## Rolling returns
 
 ### Annual 12-mth Returns by Each Month
@@ -126,51 +152,68 @@ table.AnnualizedReturns(sp500_ret, Rf=rfrate/252, scale=252)
 * Chart shows trailing annualized returns for each month
 
 ```{r}
-## convert daily to monthly again, this time set index to last day of mth
-## needed for rolling charts (otherwise index is Jan 1990, Feb 1990, etc)
-sp500_mth2 <- to.monthly(sp500, indexAt='lastof')
-sp500_mth2_ret <- Return.calculate(sp500_mth2[,4], method='discrete')
-sp500_mth2_ret <- sp500_mth2_ret[-1,]
+## get mth again but set mth dates to index to last day of mth -> more flexible approach
+sp500_mth <- to.monthly(sp500, indexAt='lastof')
+sp500_mth_ret <- Return.calculate(sp500_mth[,4], method='discrete')
 
-## annualized return over whole period
-#sp500_mth2_ann <- Return.annualized(sp500_mth2_ret, scale=12)
 ## get annualized return by month (for width=12)
-sp500_mth2_ann2 <- apply.rolling(sp500_mth2_ret, width=12, by=1, FUN='Return.annualized')
+sp500_mth_ann <- apply.rolling(sp500_mth_ret, width=12, by=1, FUN='Return.annualized')
 
 # Plotting the 12-month rolling annualized return from monthly data
-chart.RollingPerformance(R = sp500_mth2_ret, width = 12, FUN = "Return.annualized")
+chart.RollingPerformance(R = sp500_mth_ret, width = 12, FUN = "Return.annualized")
 
 ```
 
 ```{r}
-## identify outliers
-## define percentiles to use for outliers (could also use std dev)
-ret_top <- quantile(sp500_mth2_ann2, 0.95, na.rm=TRUE)
-ret_bottom <- quantile(sp500_mth2_ann2, 0.05, na.rm=TRUE)
-
-## filter for outliers defined above
-sp500_arTop <- sp500_mth2_ann2[sp500_mth2_ann2[,'calcs']>=ret_top,]
-sp500_arBottom <- sp500_mth2_ann2[sp500_mth2_ann2[,'calcs']<=ret_bottom,]
-
-## clean-up data for chart
-sp500_tb <- bind_rows(as.data.frame(sp500_arTop), as.data.frame(sp500_arBottom))
-sp500_tb$month <- row.names(sp500_tb)
-row.names(sp500_tb) <- seq(1:nrow(sp500_tb))
-sp500_tb <- sp500_tb %>% rename(
+## convert to data frame for easier operation with tidyverse
+df_sp500_mth_ann <- as.data.frame(sp500_mth_ann)
+df_sp500_mth_ann$month <- date(row.names(df_sp500_mth_ann))
+row.names(df_sp500_mth_ann) <- seq(1:nrow(df_sp500_mth_ann))
+df_sp500_mth_ann <- df_sp500_mth_ann %>% rename(
   ann_ret=calcs
 ) %>% mutate(
   year=year(month)
 )
 
+## identify outliers
+## define percentiles to use for outliers (could also use std dev)
+ret_top <- quantile(df_sp500_mth_ann$ann_ret, 0.95, na.rm=TRUE)
+ret_bottom <- quantile(df_sp500_mth_ann$ann_ret, 0.05, na.rm=TRUE)
+
+## filter for outliers defined above
+sp500_arTop <- df_sp500_mth_ann %>% filter(ann_ret>=ret_top)
+sp500_arBottom <- df_sp500_mth_ann %>% filter(ann_ret<=ret_bottom)
+
+
+## clean-up data for chart
+sp500_tb <- bind_rows(sp500_arTop, sp500_arBottom)
+
 ```
+
+* show outliers for magnitude, with yrs in color
 
 ```{r}
-## chart outliers
-sp500_tb %>% ggplot(aes(x=month, y=ann_ret, fill=as.factor(year)))+geom_col()+
+## chart outliers (note: convert 'month' from date to character in order to 'clump' together)
+sp500_tb %>% ggplot(aes(x=as.character(month), y=ann_ret, fill=as.factor(year)))+geom_col()+
   scale_y_continuous(labels=percent)+
-  theme_classic()+theme(axis.text.x = element_text(vjust=1, hjust=1, angle=60))
+  theme_classic()+theme(axis.text.x = element_text(vjust=1, hjust=1, angle=60))+
+  labs(x="", y="annualized returns")
 ```
 
+* same data but spread out dates on full scale for perspective
+
+```{r}
+## chart outliers - spread out dates
+sp500_tb %>% ggplot(aes(x=month, y=ann_ret))+geom_col()+
+  scale_y_continuous(labels=percent)+
+  geom_hline(yintercept=0)+
+  theme_classic()+theme(axis.text.x = element_text(vjust=1, hjust=1, angle=60))+
+  labs(x="", y="annualized returns")
+```
+
+* outlying periods tend to be few, far between, short
+* more upside than down, and tend to be larger (although shorter than the big downturns)
+* downturns tend NOT to follow closely on major upturns
 
 ```{r}
 sp500_mth2_ret2 %>% ggplot(aes(x=sp500.Close))+geom_histogram()

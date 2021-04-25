@@ -22,7 +22,9 @@ library(scales)
 * Set start date to go back in history earlier than default
 
 ```{r}
-sp500 <- getSymbols(Symbols="^GSPC", from="1990-01-01", auto.assign=FALSE)
+## tip: set start date mth before you want data so that you will have mthly returns for full period
+## (since there is no return calc for the first mth, by def)
+sp500 <- getSymbols(Symbols="^GSPC", from="1969-12-01", auto.assign=FALSE)
 head(sp500)
 ```
 
@@ -47,16 +49,48 @@ chart_Series(sp500_mth_ret)
 
 ## Analyse Monthly Returns
 
+### Summary
+
 ```{r}
+## drop first mth, which is NA (by def)
+sp500_mth_ret <- sp500_mth_ret[-1,]
+
 sp500_mth_ret_ave <- mean.geometric(sp500_mth_ret)
 
 sp500_mth_ret_stdev <- StdDev(sp500_mth_ret) ## StdDev from PerformanceAnalytics
+sp500_mth_min <- min(sp500_mth_ret, na.rm=TRUE)
+sp500_mth_max <- max(sp500_mth_ret, na.rm=TRUE)
 
 
 ```
 
 Ave mthly return (geometric): `r sp500_mth_ret_ave` <br />
-Std dev mthly return: `r sp500_mth_ret_stdev`
+Std dev mthly return: `r sp500_mth_ret_stdev` <br />
+Worst mthly return: `r sp500_mth_min` <br />
+Best mthly return: `r sp500_mth_max` <br />
+
+### Distribution
+
+```{r}
+## convert to data frame for easy manage with tidyverse
+df_sp500_mth_ret <- as.data.frame(sp500_mth_ret)
+df_sp500_mth_ret$mth <- row.names(df_sp500_mth_ret)
+row.names(df_sp500_mth_ret) <- seq(1:nrow(df_sp500_mth_ret))
+oe
+```
+
+```{r}
+df_sp500_mth_ret %>% ggplot(aes(x=sp500.Close))+geom_histogram()+
+  geom_vline(xintercept = 0, color='grey')+
+  geom_vline(xintercept=sp500_mth_ret_ave[1], color='blue')+
+  geom_vline(xintercept=sp500_mth_ret_ave[1]-sp500_mth_ret_stdev[1], color='lightblue')+
+  geom_vline(xintercept=sp500_mth_ret_ave[1]+sp500_mth_ret_stdev[1], color='lightblue')+
+  geom_vline(xintercept=sp500_mth_ret_ave[1]-(2*sp500_mth_ret_stdev[1]), color='lightblue', linetype='dashed')+
+  geom_vline(xintercept=sp500_mth_ret_ave[1]+(2*sp500_mth_ret_stdev[1]), color='lightblue', linetype='dashed' )+
+  scale_y_continuous(expand=c(0,0))+
+  theme_classic()
+```
+
 
 ### Sharpe ratio
 
@@ -85,19 +119,65 @@ sp500_ret <- Return.calculate(sp500[,4])
 table.AnnualizedReturns(sp500_ret, Rf=rfrate/252, scale=252)
 ```
 
-### Rolling returns
+## Rolling returns
+
+### Annual 12-mth Returns by Each Month
+
+* Chart shows trailing annualized returns for each month
 
 ```{r}
 ## convert daily to monthly again, this time set index to last day of mth
 ## needed for rolling charts (otherwise index is Jan 1990, Feb 1990, etc)
 sp500_mth2 <- to.monthly(sp500, indexAt='lastof')
-sp500_mth2_ret <- Return.calculate(sp500_mth2[,4])
+sp500_mth2_ret <- Return.calculate(sp500_mth2[,4], method='discrete')
+sp500_mth2_ret <- sp500_mth2_ret[-1,]
 
-# Plotting the 12-month rolling annualized mean from monthly data
+## annualized return over whole period
+#sp500_mth2_ann <- Return.annualized(sp500_mth2_ret, scale=12)
+## get annualized return by month (for width=12)
+sp500_mth2_ann2 <- apply.rolling(sp500_mth2_ret, width=12, by=1, FUN='Return.annualized')
+
+# Plotting the 12-month rolling annualized return from monthly data
 chart.RollingPerformance(R = sp500_mth2_ret, width = 12, FUN = "Return.annualized")
+
 ```
 
-### Windows for Specific Date Ranges
+```{r}
+## identify outliers
+## define percentiles to use for outliers (could also use std dev)
+ret_top <- quantile(sp500_mth2_ann2, 0.95, na.rm=TRUE)
+ret_bottom <- quantile(sp500_mth2_ann2, 0.05, na.rm=TRUE)
+
+## filter for outliers defined above
+sp500_arTop <- sp500_mth2_ann2[sp500_mth2_ann2[,'calcs']>=ret_top,]
+sp500_arBottom <- sp500_mth2_ann2[sp500_mth2_ann2[,'calcs']<=ret_bottom,]
+
+## clean-up data for chart
+sp500_tb <- bind_rows(as.data.frame(sp500_arTop), as.data.frame(sp500_arBottom))
+sp500_tb$month <- row.names(sp500_tb)
+row.names(sp500_tb) <- seq(1:nrow(sp500_tb))
+sp500_tb <- sp500_tb %>% rename(
+  ann_ret=calcs
+) %>% mutate(
+  year=year(month)
+)
+
+```
+
+```{r}
+## chart outliers
+sp500_tb %>% ggplot(aes(x=month, y=ann_ret, fill=as.factor(year)))+geom_col()+
+  scale_y_continuous(labels=percent)+
+  theme_classic()+theme(axis.text.x = element_text(vjust=1, hjust=1, angle=60))
+```
+
+
+```{r}
+sp500_mth2_ret2 %>% ggplot(aes(x=sp500.Close))+geom_histogram()
+```
+
+
+## Windows for Specific Date Ranges
 
 ```{r}
 #sp500 <- sp500_2009

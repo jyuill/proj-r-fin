@@ -215,12 +215,88 @@ sp500_tb %>% ggplot(aes(x=month, y=ann_ret))+geom_col()+
 * more upside than down, and tend to be larger (although shorter than the big downturns)
 * downturns tend NOT to follow closely on major upturns
 
+### Distribution
+
+* vertical lines are mean and 2 x std dev
+
 ```{r}
-sp500_mth2_ret2 %>% ggplot(aes(x=sp500.Close))+geom_histogram()
+df_sp500_mth_ann %>% ggplot(aes(x=ann_ret))+geom_histogram()+
+  geom_vline(xintercept=mean(df_sp500_mth_ann$ann_ret, na.rm=TRUE))+
+  geom_vline(xintercept=mean(df_sp500_mth_ann$ann_ret, na.rm=TRUE)-
+               (StdDev(df_sp500_mth_ann$ann_ret, na.rm=TRUE)*2))+
+  geom_vline(xintercept=mean(df_sp500_mth_ann$ann_ret, na.rm=TRUE)+
+               (StdDev(df_sp500_mth_ann$ann_ret, na.rm=TRUE)*2))+
+  theme_classic()
+
+
+```
+
+```{r}
+df_sp500_mth_ann %>% ggplot(aes(x=month, y=ann_ret))+geom_line()+
+  geom_hline(yintercept=mean(df_sp500_mth_ann$ann_ret, na.rm=TRUE), linetype='dashed')+
+  geom_hline(yintercept=mean(df_sp500_mth_ann$ann_ret, na.rm=TRUE)-
+               (StdDev(df_sp500_mth_ann$ann_ret, na.rm=TRUE)*2), linetype='dotted')+
+  geom_hline(yintercept=mean(df_sp500_mth_ann$ann_ret, na.rm=TRUE)+
+               (StdDev(df_sp500_mth_ann$ann_ret, na.rm=TRUE)*2), linetype='dotted')+
+  geom_hline(yintercept=0)+
+  theme_classic()
+```
+
+### Longer term rolling views
+
+* annualized returns by month for 1 yr , 3 yr, 5 yr cycles
+* longer periods have less extremes (volatility) and more consistently positive annualized returns
+
+THINK LONG TERM (5+ yrs) and STAY IN THE MARKET!
+
+```{r}
+sp500_roll12 <- apply.rolling(sp500_mth_ret, width=12, by=1, FUN='Return.annualized')
+sp500_roll36 <- apply.rolling(sp500_mth_ret, width=36, by=1, FUN='Return.annualized')
+sp500_roll60 <- apply.rolling(sp500_mth_ret, width=60, by=1, FUN='Return.annualized')
+
+## combine into single data frame
+df_sp500_roll12 <- as.data.frame(sp500_roll12) 
+df_sp500_roll12 <- df_sp500_roll12 %>% mutate(
+  month=date(row.names(df_sp500_roll12))
+) %>% rename(
+  ann_ret12=calcs
+)
+
+df_sp500_roll36 <- as.data.frame(sp500_roll36)
+df_sp500_roll36 <- df_sp500_roll36 %>% mutate(
+  month=date(row.names(df_sp500_roll36))
+) %>% rename(
+  ann_ret36=calcs
+)
+#row.names(df_sp500_roll36) <- seq(1:nrow(df_sp500_roll36))
+
+df_sp500_roll60 <- as.data.frame(sp500_roll60) 
+df_sp500_roll60 <- df_sp500_roll60 %>% mutate(
+  month=date(row.names(df_sp500_roll60))
+) %>% rename(
+  ann_ret60=calcs
+)
+#row.names(df_sp500_roll60) <- seq(1:nrow(df_sp500_roll60))
+
+#df_sp500_roll_all <- bind_cols(df_sp500_roll12, df_sp500_roll36, df_sp500_roll60)
+df_sp500_roll_all <- full_join(df_sp500_roll12, df_sp500_roll36, by='month')
+df_sp500_roll_all <- full_join(df_sp500_roll_all, df_sp500_roll60, by='month')
+df_sp500_roll_all <- df_sp500_roll_all %>% select(month, ann_ret12, ann_ret36, ann_ret60)
+
+```
+
+```{r}
+df_sp500_roll_all %>% ggplot(aes(x=month, y=ann_ret12))+geom_line()+
+  geom_line(aes(y=ann_ret36, color='ann_ret36'))+
+  geom_line(aes(y=ann_ret60, color='ann_ret60'))+
+  geom_hline(yintercept = 0)+
+  theme_classic()
+
 ```
 
 
-## Windows for Specific Date Ranges
+
+## Focus Specific Period (Window)
 
 ```{r}
 #sp500 <- sp500_2009
@@ -255,8 +331,8 @@ chart.Histogram(sp500_ret_2019, methods=c('add.density', 'add.normal'))
 
 ### Skewness and Kurtosis
 
-* Skewness tells us if the distribution is skewed away from normal; negative skewness indicates longer tail on the negative side (left skew)
-* Kurtosis tells us if the tails are fatter than normal curve, indicating higher likelihood of results outside the range (in std dev) than are present in normal distribution; highlights volatility
+* Skewness is not strong - pretty centered
+* Kurtosis is actually low, with higher peak, indicating less volatility/risk
 
 ```{r}
 sk2008 <- skewness(sp500_ret_2008)

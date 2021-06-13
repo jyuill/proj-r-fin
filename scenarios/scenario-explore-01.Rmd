@@ -1,0 +1,156 @@
+---
+title: "Scenario explore"
+author: "JY"
+date: "`r Sys.Date()`"
+output:
+  prettydoc::html_pretty:
+    theme: architect
+    highlight: github
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      message=FALSE,
+                      warning=FALSE)
+
+library(tidyverse)
+library(lubridate)
+library(scales)
+library(plotly)
+
+library(xts)
+library(zoo)
+library(quantmod)
+library(Quandl)
+library(dygraphs)
+library(PerformanceAnalytics)
+
+## theme set for ggplot
+theme_set(theme_light())
+```
+
+## Objective
+
+Explore some future scenarios based on past results in financial markets. This will help get a sense of some realistic future possibilites for fictional portfolio.
+
+## Step 1. Get Historical Returns
+
+* S&P 500: monthly returns
+
+(this work already done in 'SP500.Rmd')
+
+```{r}
+## tip: set start date mth before you want data so that you will have mthly returns for full period
+## (since there is no return calc for the first mth, by def)
+sp500 <- getSymbols(Symbols="^GSPC", from="1969-12-01", auto.assign=FALSE)
+head(sp500)
+```
+
+```{r}
+sp500_mth <- to.monthly(sp500)
+
+sp500_mth_ret <- Return.calculate(sp500_mth$sp500.Close)
+
+chart_Series(sp500_mth_ret)
+```
+
+* Vanguard all-stocks: monthly returns
+
+```{r}
+
+```
+
+## Step 2. Distribution of Returns
+
+* Identify distribution of historical monthly returns
+* Assuming approx normal distribution, identify:
+    + mean
+    + std dev
+
+```{r}
+## drop first mth, which is NA (by def)
+sp500_mth_ret <- sp500_mth_ret[-1,]
+
+sp500_mth_ret_ave <- mean.geometric(sp500_mth_ret)
+
+sp500_mth_ret_stdev <- StdDev(sp500_mth_ret) ## StdDev from PerformanceAnalytics
+sp500_mth_min <- min(sp500_mth_ret, na.rm=TRUE)
+sp500_mth_max <- max(sp500_mth_ret, na.rm=TRUE)
+
+## annualized return over whole period
+sp500_ttl_ann_ret <- Return.annualized(sp500_mth_ret, scale=12)
+
+```
+
+
+## Step 3. Monte Carlo Simulation
+
+* Generate a monthly return for each month by random selection from the distribution identified above
+* Calculate future value based on this selection of returns
+* Repeat entire process multiple times to understand the expected range of possibilities
+
+alternative:
+
+* could look at rolling 5-yr, 7-yr, 10-yr performance (by month)
+* use that distribution to create range of values for performance for those periods (rather than individual monthly returns)
+
+```{r}
+amount <- 400000
+nmth <- 60
+nsims <- 40
+
+returns_all <- data.frame()
+
+for(s in 1:nsims){
+  returns <- data.frame(mth=NA, ret=NA)
+  for(r in 1:nmth){
+    returns[r,"mth"] <- r
+    returns[r,"ret"] <- rnorm(n=1, mean=sp500_mth_ret_ave[1], sd=sp500_mth_ret_stdev[1]) 
+  }
+  returns <- returns %>% mutate(yr=ceiling(mth/12)
+  )
+  returns <- returns %>% mutate(
+    sim=as.factor(s)
+  )
+  returns$amt <- NA
+  for(rr in 1:nrow(returns)){
+    returns[rr,'amt'] <- ifelse(rr==1,amount*(1+returns[rr,'ret']), returns[rr-1,'amt']*(1+returns[rr,'ret']))
+  }
+  returns_all <- bind_rows(returns_all, returns)
+}
+
+```
+
+Visualize balance over time
+
+```{r}
+chart_title <- paste0('Monthly Returns for ',nsims,' simulations of ',nmth, ' months')
+returns_all %>% ggplot(aes(x=mth, y=amt, color=sim))+geom_line()+
+  scale_y_continuous(labels=comma)+
+  theme(legend.position = 'none')+
+  labs(title=chart_title)
+```
+
+```{r}
+## ave final amount
+returns_amt <- returns_all %>% filter(mth==nmth) %>% select(mth, sim, amt)
+
+chart_title <- paste0("Distribution of End Amt for ",nsims, " of ",nmth, " months") 
+plot_dist <- returns_amt %>% ggplot(aes(x=amt))+geom_histogram()+
+  scale_x_continuous(labels=comma)+
+  geom_vline(xintercept=mean(returns_amt$amt), color='blue')+
+  geom_vline(xintercept=median(returns_amt$amt), color='green')+
+  geom_vline(xintercept=quantile(returns_amt$amt, 0.25))+
+  geom_vline(xintercept=quantile(returns_amt$amt, 0.75))+
+  labs(title=chart_title)
+ggplotly(plot_dist)
+```
+
+```{r}
+median(returns_amt$amt)
+mean(returns_amt$amt)
+quantile(returns_amt$amt, 0.25)
+quantile(returns_amt$amt, 0.75)
+
+```
+

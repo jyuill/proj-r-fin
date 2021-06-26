@@ -33,7 +33,9 @@ theme_set(theme_light())
 
 Explore some future scenarios based on past results in financial markets. This will help get a sense of some realistic future possibilites for fictional portfolio.
 
-## Step 1. Get Historical Returns
+## S&P 500
+
+### Step 1. Get Historical Returns
 
 * S&P 500: monthly returns
 
@@ -44,7 +46,13 @@ Explore some future scenarios based on past results in financial markets. This w
 ## (since there is no return calc for the first mth, by def)
 sp500 <- getSymbols(Symbols="^GSPC", from="1969-12-01", auto.assign=FALSE)
 head(sp500)
+
+## basic chart_Series from quantmod
+chart_Series(Cl(sp500))
+
 ```
+
+#### Focus on returns
 
 ```{r}
 sp500_mth <- to.monthly(sp500)
@@ -54,13 +62,9 @@ sp500_mth_ret <- Return.calculate(sp500_mth$sp500.Close)
 chart_Series(sp500_mth_ret)
 ```
 
-* Vanguard all-stocks: monthly returns
 
-```{r}
 
-```
-
-## Step 2. Distribution of Returns
+### Step 2. Distribution of Returns
 
 * Identify distribution of historical monthly returns
 * Assuming approx normal distribution, identify:
@@ -82,8 +86,7 @@ sp500_ttl_ann_ret <- Return.annualized(sp500_mth_ret, scale=12)
 
 ```
 
-
-## Step 3. Monte Carlo Simulation
+### Step 3. Monte Carlo Simulation
 
 * Generate a monthly return for each month by random selection from the distribution identified above
 * Calculate future value based on this selection of returns
@@ -154,3 +157,8 @@ quantile(returns_amt$amt, 0.75)
 
 ```
 
+## Vanguard all-stocks: monthly returns
+
+```{r}
+
+```

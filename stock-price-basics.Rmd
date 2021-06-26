@@ -185,7 +185,7 @@ head(renewables3c)
 
 Dygraphs pkg enables interactive charts designed to work with quantmod right out of the boox.
 
-### Basic line chart
+### Basic line chart (non-interactive)
 
 * chart_Series 
 
@@ -195,6 +195,14 @@ chart_Series(OHLC(CSIQ))
 
 ```
 
+* with volume
+
+```{r}
+barChart(CSIQ)
+```
+
+### Dygraph line (interactive)
+
 * dygraph
 
 ```{r DYGRAPH_ONE}
@@ -203,11 +211,6 @@ dygraph(OHLC(CSIQ))
 
 ```
 
-* with volume
-
-```{r}
-barChart(CSIQ)
-```
 
 * closing price only
 
@@ -244,7 +247,6 @@ Adjusted price is supposed to adjust for stock splits, while other prices are ac
 
 However...Tesla (TSLA) had a 5-for-1 stock split on Aug 3 dropping price from ~$2,000 to ~$400. Prices collected as of Sep 5, 2020 show post-split throughout.
 
-
 ```{r}
 getSymbols("TSLA", auto.assign = TRUE)
 
@@ -258,7 +260,6 @@ tail(TSLA_presplit)
 #chart_Series(OHLC(TSLA))
 dygraph(OHLC(TSLA))
 ```
-
 
 ## Candlestick
 

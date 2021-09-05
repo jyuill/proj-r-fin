@@ -1,0 +1,376 @@
+---
+title: "Financial Burn Down Scenarios"
+author: "`r Sys.getenv('USER')`"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    code_fold: hide
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      message=FALSE,
+                      warning=FALSE,
+                      fig.height=3.5,
+                      fig.width=6)
+
+library(FinCal)
+library(tidyverse)
+library(lubridate)
+library(here)
+library(PerformanceAnalytics)
+library(plotly)
+library(scales)
+library(gridExtra)
+library(DT)
+
+options(scipen = 10)
+theme_set(theme_light())
+
+```
+
+## Intro
+
+Exploration of some different scenarios for financial burndown based on various assumptions around present value, annual expenditures, annual returns.
+
+## References
+
+* 
+* [Time value of money calculations in R - no pkg](https://www.codingfinance.com/post/2018-03-18-tvm/)
+
+### Inputs & Output
+
+Inputs needed:
+
+* starting balance
+* annual drawdown
+* return on balance
+* number of years of drawdown period
+
+Output is remaining balance at end of period.
+
+```{r, include=FALSE}
+## test area for single calculation to get end balance
+startbal <- -600000
+draw <- 60000
+return <- 0.04
+yrs <- 4
+
+remain_end <- fv(r=return, n=yrs, pv=startbal, pmt=draw, type=0)
+```
+
+## Single Scenario
+
+```{r}
+## loop through each year, new calc based on balance at end of each year to get year-by-year schedule
+startbal <- -600000
+draw <- 60000
+return <- 0.04
+yrs <- 10
+
+start_bal <- startbal
+sched_all_s <- data.frame()
+for(y in 1:yrs){
+  remain <- fv(r=return, n=1, pv=start_bal, pmt=draw, type=0)
+  sched <- data.frame('year'=y,
+                      'balance'=remain)
+  sched_all_s <- bind_rows(sched_all_s, sched)
+  start_bal <- remain*-1
+}
+```
+
+* Start: `r paste0("$",format(startbal*-1, big.mark=",", digits=0))`
+* Draw: `r paste0("$",format(draw, big.mark=",", digits=0), " / yr")`
+* Return rate: `r paste0(return*100,"%")`
+* Years: `r yrs`
+
+At end of `r yrs` years, you will have `r paste0("$",format(remain, big.mark=",", digits=0))` left.
+
+```{r}
+sched_all_s %>% ggplot(aes(x=as.factor(year), y=balance))+geom_line(group=1)+
+  scale_y_continuous(labels=comma)+
+  labs(title=paste0("$",format(remain, big.mark=",", digits=0), " left after ", yrs, " years."),
+       y="", x="year from start")
+```
+
+## Multiple Scenarios
+
+```{r}
+
+## loop through each year, new calc based on balance at end of each year to get year-by-year schedule
+scenarios <- tribble(
+  ~startbal, ~draw, ~return, ~yrs,
+  -600000, 60000, 0.04, 20,
+  -700000, 60000, 0.03, 20,
+  -700000, 60000, 0.02, 20,
+  -800000, 60000, 0.02, 20,
+  -800000, 60000, 0.03, 20,
+  -1000000, 70000, 0.03, 20,
+  -1000000, 60000, 0.04, 20,
+  -800000, 60000, 0.04, 20
+)
+scenarios <- scenarios %>% mutate(
+  scenario=paste0(as.character(startbal/1000*-1),"k-",as.character(draw/1000),"k-",as.character(return*100),"%-", as.character(yrs),"y")
+)
+
+sched_all_scenario <- data.frame()
+for(s in 1:nrow(scenarios)){
+  scen <- scenarios$scenario[s]
+  start_bal <- scenarios$startbal[s]
+  sched_all <- data.frame()
+  for(y in 1:scenarios$yrs[s]){
+    remain <- fv(r=scenarios$return[s], n=1, pv=start_bal, pmt=scenarios$draw[s], type=0)
+    sched <- data.frame('scenario'=scen,
+                        'year'=y,
+                        'balance'=remain)
+    sched_all <- bind_rows(sched_all, sched)
+    start_bal <- remain*-1
+  }
+  sched_all_scenario <- bind_rows(sched_all_scenario, sched_all)
+}
+
+```
+
+```{r}
+pbar <- sched_all_scenario %>% ggplot(aes(x=year, y=balance, fill=scenario))+geom_col(position = position_dodge())+
+  scale_y_continuous(labels=comma)+
+  labs(title=paste0("How much left after ", max(scenarios$yrs), " years in different scenarios"),
+       y="", x="year from start")
+
+ggplotly(pbar)
+```
+
+```{r}
+pline <- sched_all_scenario %>% ggplot(aes(x=year, y=balance, color=scenario))+geom_line()+
+  geom_hline(yintercept=0)+
+  scale_y_continuous(labels=comma)+
+  labs(title=paste0("How much left after ", yrs, " years in different scenarios"),
+       y="", x="year from start")
+
+ggplotly(pline)
+```
+
+## Simulations
+
+### Setup and Run Simulations
+
+```{r}
+
+## number of simulations
+nsims <- 100
+## number of years to simulate
+yrs <- 20
+## parameters for starting, return, draw - exact numbers determined in loop
+## min and max starting balance
+start_min <- 600000
+start_max <- 900000
+## return rate 
+r_mean <- 0.03
+r_sd <- 0.07
+r_max <- 0.20
+## draw 
+draw_min <- 50000
+draw_max <- 75000
+
+sim_all <- data.frame()
+
+for(s in 1:nsims){
+  sim <- s
+  bal_start <- round(runif(n=1, min=start_min, max=start_max),0)
+  bal_start_set <- bal_start
+  bal_start_no_draw <- bal_start
+  sim_sched <- data.frame()
+  for(y in 1:yrs){
+    rrate <- round(min(rnorm(n=1, mean=r_mean, sd=r_sd), r_max), 3)
+    draw <- round(runif(n=1, min=draw_min, max=draw_max),0)
+    return <- round(bal_start*rrate, 0)
+    bal_remain <- ifelse(bal_start>0,bal_start+return-draw,bal_start-draw)
+    bal_no_draw <- round(bal_start_no_draw*(1+rrate),0)
+    sim_yr <- data.frame('sim'=sim,
+                        'year'=y,
+                        'start'=bal_start,
+                        'rrate'=rrate,
+                        'return'=return,
+                        'draw'=draw,
+                        'balance'=bal_remain,
+                        'bal_no_draw'=bal_no_draw)
+    sim_sched <- bind_rows(sim_sched, sim_yr)
+    bal_start <- bal_remain
+    bal_start_no_draw <- bal_no_draw
+  }
+  sim_all<- bind_rows(sim_all, sim_sched)
+}
+sim_all$sim <- as.factor(sim_all$sim)
+```
+
+* Number of simulations: `r nsims` 
+* Number of years: `r yrs`
+* Starting balance: `r start_min` to `r start_max` (uniform dist.)
+* Rate of return: average `r r_mean` ave, `r r_sd` std dev (normal dist. with max `r r_max`)
+* Annual draw: `r draw_min` to `r draw_max` (uniform dist.)
+
+### Visualize Progress Over Time
+
+```{r}
+psim <- sim_all %>% ggplot(aes(x=year, y=balance, color=sim))+geom_line()+
+  geom_hline(yintercept=0)+
+  scale_y_continuous(labels=comma)+
+  theme(legend.position = 'none')+
+  labs(title=paste0("How much left after ", yrs, " years in different simulations"),
+       y="", x="year from start")
+
+ggplotly(psim)
+```
+
+### Summarize
+
+#### Distribution of End Balances
+
+```{r}
+chart_title <- "Distribution of End Balances"
+sim_all %>% ggplot(aes(x=balance))+geom_histogram()+
+  labs(title=chart_title)
+```
+
+#### What Really Counts: under water or not?
+
+```{r}
+sim_all <- sim_all %>% filter(year==20) %>% mutate(
+  pos=ifelse(balance>0,"money","no money")
+)
+
+sim_all %>% ggplot(aes(x=pos))+geom_bar()+
+  labs("How likely to run out of money???")
+```
+
+
+```{r}
+sim_neg <- sim_all %>% filter(balance<=0)
+sim_neg_yr <- sim_neg %>% group_by(sim) %>% summarize(yr=min(year))
+
+sim_neg_yr %>% ggplot(aes(x=yr))+geom_bar()+
+  labs(title="Distribution of Years when Balance = $0")
+```
+
+For those simulations that go below $0 with end balance.
+
+```{r}
+chart_title <- "Distribution of Returns in Sims"
+hist1 <- sim_all %>% ggplot(aes(x=rrate))+geom_histogram()+
+  geom_vline(xintercept=mean(sim_all$rrate), linetype='dotted')+
+  scale_y_continuous(expand=expansion(add=c(0,1)))+
+  scale_x_continuous(labels=percent)+
+  labs(title=chart_title)
+
+mrate_all <- mean(sim_all$rrate)
+sdrate_all <- sd(sim_all$rrate)
+
+## calc returns when draw downs excluded
+sim_rr <- sim_all %>% group_by(sim) %>% summarize(start_bal=first(start),
+                                                  end_bal=last(bal_no_draw),
+                                                  yrs=max(year)) %>%
+  mutate(ttl_return=end_bal/start_bal-1,
+         ttl_return_ave=ttl_return/yrs)
+
+chart_title <- "Distribution of Real Returns in Sims (no draw)"
+hist2 <- sim_rr %>% ggplot(aes(x=ttl_return_ave))+geom_histogram()+
+  geom_vline(xintercept=mean(sim_rr$ttl_return_ave), linetype='dotted')+
+  scale_y_continuous(expand=expansion(add=c(0,1)))+
+  scale_x_continuous(labels=percent)+
+  labs(title=chart_title)
+
+grid.arrange(hist1, hist2, nrow=1)
+```
+
+* Mean rate of return (straight ave): `r mrate_all`
+* Std dev rate of return (straight sd): `r sdrate_all`
+
+* Mean total rate of return, no draws: `r mean(sim_rr$ttl_return_ave)`
+* Std dev rate of return, no draws: `r sd(sim_rr$ttl_return_ave)`
+
+
+```{r}
+chart_title <- "Returns over time"
+sim_all %>% ggplot(aes(x=as.factor(year), y=return))+geom_boxplot()+
+  geom_hline(yintercept = 0)+
+  scale_y_continuous(labels=comma)+
+  labs(title=chart_title)
+```
+
+```{r}
+chart_title <- "Draws over time"
+sim_all %>% ggplot(aes(x=as.factor(year), y=draw))+geom_boxplot()+
+  geom_hline(yintercept=mean(sim_all$draw), linetype='dashed')+
+  scale_y_continuous(labels=comma)+
+  labs(title=chart_title, x='year from start')
+```
+
+### Evaluate Positive Outcomes
+
+#### Identify Positive Outcomes
+
+```{r}
+## identify sims where balance > 0 at year 20
+sim_pos <- sim_all[sim_all$year==20 & sim_all$balance>0,]
+sim_pos_rate <- nrow(sim_pos)/nsims
+## filter full list for positive sims only
+sim_pos_filter <- sim_pos %>% select(sim)
+sim_pos_all <- left_join(sim_pos_filter, sim_all, by='sim')
+
+## summarize individual sims
+sim_pos_ind_smry <- sim_pos_all %>% group_by(sim) %>% summarize(
+  start_bal=first(start),
+  ave_rate=round(mean(rrate),3),
+  ave_draw=round(mean(draw),0),
+  end_bal=last(balance)
+)
+
+chart_title <- paste0("Ending Balance after ", yrs," yrs for positive sims")
+sim_pos %>% ggplot(aes(x=reorder(sim, -balance), y=balance))+geom_col(position=position_dodge())+
+  scale_y_continuous(labels=comma, expand=expansion(mult=c(0,0.05)))+
+  labs(title=chart_title, x='sim')
+```
+
+#### Overall Sim Summary
+
+```{r}
+sim_pos_smry <- sim_pos_ind_smry %>% summarize(
+  ave_start=mean(start_bal),
+  ave_rate=mean(ave_rate),
+  ave_draw=mean(ave_draw),
+  end_bal=mean(end_bal)
+)
+sim_pos_smry
+```
+
+#### Individual Pos Sim Summary
+
+```{r}
+sim_pos_ind_smry 
+```
+
+#### Detailed Table
+
+```{r}
+## DT to add table of all rows for each positive sim for inspection
+datatable(sim_pos_all)
+```
+
+#### What is distribution in returns within sims?
+
+```{r}
+chart_title <- 'Distributions in Annual Returns across positive sims'
+sim_pos_all %>% ggplot(aes(x=sim, y=rrate))+geom_boxplot()+
+  geom_hline(yintercept = 0)+
+  labs(title=chart_title)
+```
+
+#### Is there correlation between starting balance & returns?
+
+Do sims in the positive set have both high starting AND high returns?
+
+```{r}
+sim_pos_ind_smry %>% ggplot(aes(x=start_bal, y=ave_rate))+geom_point()
+```

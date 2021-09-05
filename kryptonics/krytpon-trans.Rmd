@@ -1,0 +1,167 @@
+---
+title: "Crypto Transactions & Returns"
+author: "John Yuill"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+## Intro
+
+This report compiles info on cryptocurrency transactions - buying and selling - and calculates returns on those transactions.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE,
+                      message=FALSE,
+                      warning=FALSE)
+
+library(quantmod) ## includes zoo (which includes xts)
+library(PerformanceAnalytics)
+library(tidyverse)
+library(lubridate)
+library(scales)
+library(dygraphs)
+library(here)
+library(viridis)
+library(gridExtra)
+
+theme_set(theme_light())
+```
+
+```{r, IMPORT}
+## IMPORT trade and cost data
+## - processed in google sheets from CB export
+## - imported, cleaned, saved via trades_data_import.R
+trade_data <- read_csv(here('data/trades_data_exp.csv'))
+
+## filter for crypto
+#crypto_trades <- trade_data %>% filter(str_detect(Symbol, 'BTC|ETH|LTC'))
+
+```
+
+```{r, PROCESS}
+## filter for SELL transactions
+trade_sell <- trade_data %>% filter(Activity=='trade-sell') %>% select(-`Receipt No`,-`Date_time`
+) %>% mutate(
+  gain=ifelse(Currency=='BTC', `CAD Amount`+`BTC-cost`,
+              ifelse(Currency=='ETH', `CAD Amount`+`ETH-cost`, `CAD Amount`+`LTC-cost`)),
+  cost=`CAD Amount`-gain,
+  avg_cost=ifelse(Currency=='BTC', `BTC-cost`/BTC,
+              ifelse(Currency=='ETH', `ETH-cost`/ETH, `LTC-cost`/LTC)),
+  roi=gain/cost
+)
+
+## summarize by currency
+trade_sell_curr <- trade_sell %>% group_by(Currency) %>% summarize(
+  units=sum(Amount),
+  ttl_revenue=sum(`CAD Amount`),
+  ttl_gain=sum(gain),
+  ttl_cost=sum(cost),
+  avg_price=ttl_revenue/units,
+  avg_cost=ttl_cost/units
+) %>% mutate(
+  roi=ttl_gain/ttl_cost
+)
+
+## summarize all
+trade_sell_all <- trade_sell %>% summarize(
+  ttl_revenue=sum(`CAD Amount`),
+  ttl_gain=sum(gain),
+  ttl_cost=sum(cost)
+) %>% mutate(
+  roi=ttl_gain/ttl_cost
+)
+
+```
+
+## Sell Transaction Returns
+
+Performance info based on actual sales made.
+
+### Overall Performance 
+
+```{r, fig.height=3, fig.width=6}
+psa <- trade_sell_all %>% ggplot(aes(x=1, y=ttl_gain, label=prettyNum(round(ttl_gain,0), big.mark = ",")))+geom_col()+
+  geom_text(size=8, nudge_y = 1200)+
+  geom_hline(yintercept=20000)+
+  scale_y_continuous(labels=dollar, expand = expansion(mult=c(0,0.05)))+
+  labs(x='ttl gains v target')+
+  theme(axis.text.x=element_blank(),
+        axis.ticks.x=element_blank())
+
+ptr <- ggplot(trade_sell_curr, aes(x=1, y=ttl_gain, fill=Currency))+geom_col()+
+  scale_y_continuous(labels=dollar, expand = expansion(mult=c(0,0.05)))+
+  labs(x='ttl gains by currency')+
+  theme(axis.text.x=element_blank(),
+        axis.ticks.x=element_blank())
+
+proi <- ggplot(trade_sell_curr, aes(x=Currency, y=roi))+geom_col()+
+  scale_y_continuous(labels=percent, expand = expansion(mult=c(0,0.05)))+
+  labs(x="")
+
+grid.arrange(psa, ptr, proi, nrow=1)
+```
+
+
+```{r}
+total_invest <- trade_data %>% filter(Activity=='fund-e-transfer') %>% summarize(
+  ttl_invest=sum(Amount)
+)
+
+#total_invest
+```
+Total invested to date: `r total_invest$ttl_invest`
+
+### Individual Sell Transactions
+
+```{r, fig.height=3, fig.width=8}
+
+p_amt <- trade_sell %>% ggplot(aes(x=Date, y=gain, fill=Currency))+geom_col(position=position_dodge(preserve='single'))+
+  scale_y_continuous(labels=dollar, expand=expansion(add=c(0,100)))+
+  labs(x="")+theme(legend.position='none')
+
+p_pc <- trade_sell %>% ggplot(aes(x=Date, y=roi, fill=Currency))+geom_col(position=position_dodge(preserve="single"))+
+  scale_y_continuous(labels=percent, expand=expansion(add=c(0,0.1)))+
+  labs(x="")
+
+# ## VIZ
+# p_amt <- ggplot(trade_dt_summary, aes(x=Date, y=total_gain, fill=Symbol))+geom_col()+
+#   #coord_flip()+
+#   scale_x_date()+
+#   scale_y_continuous(labels=dollar, expand=c(0,0))+
+#   scale_fill_viridis_d()+
+#   labs(x='')+theme(legend.position='none')
+#   
+# 
+# p_pc <- ggplot(trade_dt_summary, aes(x=Date, y=roi, fill=Symbol))+geom_col()+
+#   #coord_flip()+
+#   scale_x_date()+
+#   scale_y_continuous(labels=percent, expand=c(0,0))+
+#   scale_fill_viridis_d()+
+#   labs(x='')
+# 
+grid.arrange(p_amt, p_pc, nrow=1)
+```
+
+## Potential Returns
+
+Potential returns based on:
+
+* Current prices for various currencies
+* Latest average cost for various currencies
+
+```{r}
+## get current prices
+
+```
+
+## Value at Risk
+
+Value at Risk for each currency calculated based on:
+
+* 5% likelihood drop in price over 24hrs
+* amount invested
+
+```{r}
+
+```
+

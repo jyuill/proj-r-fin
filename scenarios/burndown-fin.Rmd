@@ -25,6 +25,7 @@ library(plotly)
 library(scales)
 library(gridExtra)
 library(DT)
+library(RColorBrewer)
 
 options(scipen = 10)
 theme_set(theme_light())
@@ -164,15 +165,17 @@ nsims <- 100
 yrs <- 20
 ## parameters for starting, return, draw - exact numbers determined in loop
 ## min and max starting balance
-start_min <- 600000
-start_max <- 900000
-## return rate 
+start_min <- 700000
+start_max <- 1000000
+## return rate (real return, after inflation)
 r_mean <- 0.03
 r_sd <- 0.07
 r_max <- 0.20
 ## draw 
 draw_min <- 50000
 draw_max <- 75000
+## inflation rate - index draw against this
+inflr <- 0.02
 
 sim_all <- data.frame()
 
@@ -184,15 +187,17 @@ for(s in 1:nsims){
   sim_sched <- data.frame()
   for(y in 1:yrs){
     rrate <- round(min(rnorm(n=1, mean=r_mean, sd=r_sd), r_max), 3)
-    draw <- round(runif(n=1, min=draw_min, max=draw_max),0)
-    return <- round(bal_start*rrate, 0)
-    bal_remain <- ifelse(bal_start>0,bal_start+return-draw,bal_start-draw)
+    return <- ifelse(bal_start>0,round(bal_start*rrate, 0),0)
+    draw_ni <- min(round(runif(n=1, min=draw_min, max=draw_max),0),bal_start+return)
+    draw <- min(round(draw_ni*(1+inflr)^y,0),bal_start+return)
+    bal_remain <- bal_start+return-draw
     bal_no_draw <- round(bal_start_no_draw*(1+rrate),0)
     sim_yr <- data.frame('sim'=sim,
                         'year'=y,
                         'start'=bal_start,
                         'rrate'=rrate,
                         'return'=return,
+                        'draw_ni'=draw_ni,
                         'draw'=draw,
                         'balance'=bal_remain,
                         'bal_no_draw'=bal_no_draw)
@@ -216,7 +221,7 @@ sim_all$sim <- as.factor(sim_all$sim)
 ```{r}
 psim <- sim_all %>% ggplot(aes(x=year, y=balance, color=sim))+geom_line()+
   geom_hline(yintercept=0)+
-  scale_y_continuous(labels=comma)+
+  scale_y_continuous(labels=comma, expand=expansion(mult=c(0,0.01)))+
   theme(legend.position = 'none')+
   labs(title=paste0("How much left after ", yrs, " years in different simulations"),
        y="", x="year from start")
@@ -229,20 +234,78 @@ ggplotly(psim)
 #### Distribution of End Balances
 
 ```{r}
-chart_title <- "Distribution of End Balances"
-sim_all %>% ggplot(aes(x=balance))+geom_histogram()+
+chart_title <- "Distribution of End Balances at 20 yrs"
+sim_all_20 <- sim_all %>% filter(year==20) 
+sim_all_20 %>% ggplot(aes(x=balance))+geom_histogram()+
+  geom_vline(xintercept=mean(sim_all_20$balance), linetype='dotted')+
   labs(title=chart_title)
 ```
 
 #### What Really Counts: under water or not?
 
-```{r}
-sim_all <- sim_all %>% filter(year==20) %>% mutate(
-  pos=ifelse(balance>0,"money","no money")
-)
+##### At 20 yrs
 
-sim_all %>% ggplot(aes(x=pos))+geom_bar()+
-  labs("How likely to run out of money???")
+```{r}
+sim_all <- sim_all %>% mutate(
+  status=ifelse(balance>0, "money","no_money")
+)
+sim_20 <- sim_all %>% filter(year==20) 
+sim_20$status <- factor(sim_20$status, levels=c('no_money','money'))
+
+#s_color <- c("light red", "dark green")
+## get from RColorBrewer -> identify palette, select items; in this case, reverse order
+s_color <- brewer.pal(n=3, name='Dark2')[2:1]
+
+p1 <- sim_20 %>% ggplot(aes(x=status))+geom_bar()+
+  scale_y_continuous(expand=expansion(add=c(0,5)))+
+  labs(title="How often run out of money???", x="")
+
+p2 <- sim_20 %>% ggplot(aes(x=1, fill=status))+geom_bar(position='fill')+
+  scale_y_continuous(labels=percent, expand=expansion(add=c(0,0)))+
+  theme(axis.text.x = element_blank())+
+  scale_fill_manual(values=s_color)+
+  #scale_fill_brewer(palette='Dark2')+
+  labs(title="", x="", y="")
+
+grid.arrange(p1, p2, nrow=1, widths=c(3,2))
+```
+
+##### Money vs No Money by Year
+
+```{r}
+## summarize status results by year
+
+sim_check_all <- data.frame()
+for(y in 12:20){
+  yr_check <- y
+sim_check <- sim_all %>% filter(year==yr_check) %>% group_by(status) %>% summarize(status_count=n()) %>% mutate(yr=yr_check)
+sim_check_all <- bind_rows(sim_check_all, sim_check)
+}
+## set factor levels for more control
+sim_check_all$status <- factor(sim_check_all$status, levels=c('no_money','money')) 
+## bar chart for split between money / no-money
+p1 <- sim_check_all %>% ggplot(aes(x=as.factor(yr), y=status_count, fill=status))+geom_col(position='fill')+
+  scale_y_continuous(labels=percent, expand=expansion(add=c(0,0)))+
+  scale_fill_manual(values=s_color)+
+  labs(x='years from start', y='')
+
+## spread data to calc percentages of cases with money
+sim_check_all_wide <- sim_check_all %>% pivot_wider(names_from=status, values_from=status_count) %>% mutate(
+  status_pc=money/(money+no_money)
+) 
+## line chart showing percent with money each yr
+p2 <- sim_check_all_wide %>% ggplot(aes(x=yr, y=status_pc))+geom_line()+
+  scale_y_continuous(labels=percent, expand=c(0,0), limit=c(0,1))+
+  scale_x_continuous(expand=c(0,0))+
+  labs(x='years from start', y='% of simulations')
+
+grid.arrange(p2, p1, nrow=1)
+```
+
+```{r}
+sim_check_all_wide %>% select(yr, status_pc)
+#sim_check_all_wide %>% select(yr, status_pc) %>% datatable()
+
 ```
 
 
@@ -257,9 +320,11 @@ sim_neg_yr %>% ggplot(aes(x=yr))+geom_bar()+
 For those simulations that go below $0 with end balance.
 
 ```{r}
-chart_title <- "Distribution of Returns in Sims"
+chart_title <- "Dist. of Returns - Pos Sims"
 hist1 <- sim_all %>% ggplot(aes(x=rrate))+geom_histogram()+
   geom_vline(xintercept=mean(sim_all$rrate), linetype='dotted')+
+  ## geom_text preferred but geom_label used for better visibility
+  geom_label(aes(label=mean(sim_all$rrate), x=mean(sim_all$rrate), y=+Inf), position='identity', vjust=1.2)+
   scale_y_continuous(expand=expansion(add=c(0,1)))+
   scale_x_continuous(labels=percent)+
   labs(title=chart_title)
@@ -274,9 +339,10 @@ sim_rr <- sim_all %>% group_by(sim) %>% summarize(start_bal=first(start),
   mutate(ttl_return=end_bal/start_bal-1,
          ttl_return_ave=ttl_return/yrs)
 
-chart_title <- "Distribution of Real Returns in Sims (no draw)"
+chart_title <- "Dist. Returns - Pos Sims (no draw)"
 hist2 <- sim_rr %>% ggplot(aes(x=ttl_return_ave))+geom_histogram()+
   geom_vline(xintercept=mean(sim_rr$ttl_return_ave), linetype='dotted')+
+  geom_label(aes(label=mean(sim_all$ttl_return_ave), x=mean(sim_all$ttl_return_ave), y=+Inf), position='identity', vjust=1.2)+
   scale_y_continuous(expand=expansion(add=c(0,1)))+
   scale_x_continuous(labels=percent)+
   labs(title=chart_title)
@@ -339,7 +405,7 @@ sim_pos %>% ggplot(aes(x=reorder(sim, -balance), y=balance))+geom_col(position=p
 sim_pos_smry <- sim_pos_ind_smry %>% summarize(
   ave_start=mean(start_bal),
   ave_rate=mean(ave_rate),
-  ave_draw=mean(ave_draw),
+  ave_draw=mean(ave_draw_ni),
   end_bal=mean(end_bal)
 )
 sim_pos_smry
@@ -355,19 +421,53 @@ sim_pos_ind_smry
 
 ```{r}
 ## DT to add table of all rows for each positive sim for inspection
-datatable(sim_pos_all)
+datatable(sim_pos_all, rownames = FALSE)
 ```
 
-#### What is distribution in returns within sims?
+#### Positive Outcome Characteristics
+
+##### What is distribution of starting balances within positive sims?
+
+```{r}
+sim_pos_yr1 <- sim_pos_all %>% filter(year==1) 
+sim_pos_yr1 %>% ggplot(aes(x=start))+geom_histogram()+
+  scale_x_continuous(labels=comma)+
+  scale_y_continuous(expand=c(0,0))+
+  geom_vline(xintercept = mean(sim_pos_yr1$start), linetype='dotted', size=2)+
+  geom_label(aes(label=prettyNum(round(mean(sim_pos_yr1$start),0), big.mark = ","), x=mean(sim_pos_yr1$start),
+                ## y set to +Inf which goes to top
+            y=+Inf,
+            hjust=1.2,
+            vjust=1.5))
+```
+
+##### What is distribution in returns within sims?
 
 ```{r}
 chart_title <- 'Distributions in Annual Returns across positive sims'
 sim_pos_all %>% ggplot(aes(x=sim, y=rrate))+geom_boxplot()+
   geom_hline(yintercept = 0)+
+  geom_hline(yintercept = mean(sim_pos_all$rrate), linetype='dotted', size=1.5)+
+  geom_text(aes(label=paste0(round(mean(sim_pos_all$rrate),3)*100,"%"), x=0, y=mean(sim_pos_all$rrate)),
+            hjust=0, vjust=-1)+
+  scale_y_continuous(labels=percent)+
   labs(title=chart_title)
 ```
 
-#### Is there correlation between starting balance & returns?
+##### What is the distribution of draws?
+
+Not inflation adjusted, for comparison with current dollar value.
+
+```{r}
+sim_pos_all %>% ggplot(aes(x=draw_ni))+geom_histogram()+
+  scale_x_continuous(labels=comma)+
+  geom_vline(xintercept = mean(sim_pos_all$draw_ni), linetype='dotted', size=2)+
+  geom_text(aes(label=prettyNum(round(mean(sim_pos_all$draw_ni),0), big.mark = ","), x=mean(sim_pos_all$draw_ni),
+                ## y set to +Inf, which goes to top; requires vjust
+                y=+Inf, hjust=1.2, vjust=1.5))
+```
+
+##### Is there correlation between starting balance & returns?
 
 Do sims in the positive set have both high starting AND high returns?
 

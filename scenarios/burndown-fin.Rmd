@@ -38,7 +38,6 @@ Exploration of some different scenarios for financial burndown based on various 
 
 ## References
 
-* 
 * [Time value of money calculations in R - no pkg](https://www.codingfinance.com/post/2018-03-18-tvm/)
 
 ### Inputs & Output
@@ -390,6 +389,7 @@ sim_pos_ind_smry <- sim_pos_all %>% group_by(sim) %>% summarize(
   start_bal=first(start),
   ave_rate=round(mean(rrate),3),
   ave_draw=round(mean(draw),0),
+  ave_draw_ni=round(mean(draw_ni),0),
   end_bal=last(balance)
 )
 
@@ -424,7 +424,7 @@ sim_pos_ind_smry
 datatable(sim_pos_all, rownames = FALSE)
 ```
 
-#### Positive Outcome Characteristics
+o#### Positive Outcome Characteristics
 
 ##### What is distribution of starting balances within positive sims?
 

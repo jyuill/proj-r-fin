@@ -202,7 +202,7 @@ ggplotly(p2)
 Column {data-width=350}
 -----------------------------------------------------------------------
 
-### Starting Bal - Success
+### Starting Balanaces - Successful sims
 
 ```{r}
 
@@ -210,37 +210,50 @@ spybal <- sim_pos_yr1 %>% ggplot(aes(x=start))+geom_histogram()+
   scale_x_continuous(labels=dollar)+
   scale_y_continuous(expand=expansion(add=c(0,0.5)))+
   geom_vline(xintercept = mean(sim_pos_yr1$start), linetype='dotted', size=1.2)+
-  geom_text(aes(label=prettyNum(round(mean(sim_pos_yr1$start),0), big.mark = ","), x=mean(sim_pos_yr1$start),
-                ## y set to +Inf which goes to top
-            y=max(1, nrow(sim_pos)/3),
-            hjust=0,
-            vjust=0))
+  geom_text(aes(label=prettyNum(round(mean(sim_pos_yr1$start),0), big.mark = ","),
+                x=mean(sim_pos_yr1$start),
+                ## y set to +Inf which goes to top - but not plotly
+            y=max(1, nrow(sim_pos)/3)),
+            color='blue', hjust=0, vjust=0)+
+  labs(x="", y="")
 ggplotly(spybal)
 ```
 
-### Distribution of Rate of Return
+### Distribution of Rate of Return - Successful Sims
 
 ```{r}
 chart_title <- 'Distributions in Annual Returns across positive sims'
 rrp <- sim_pos_all %>% ggplot(aes(x=sim, y=rrate))+geom_boxplot()+
   geom_hline(yintercept = 0)+
   geom_hline(yintercept = mean(sim_pos_all$rrate), linetype='dotted', size=1)+
-  geom_text(aes(label=paste0(round(mean(sim_pos_all$rrate),3)*100,"%"), x=min(as.integer(sim_pos_all$sim))+1, y=mean(sim_pos_all$rrate)))+
-  scale_y_continuous(labels=percent)
+  ## geom_label works beautifully in ggplot but not plotly
+  # geom_label(aes(label=paste0(round(mean(sim_pos_all$rrate),3)*100,"%"),
+  #                      x=1,
+  #                      y=mean(sim_pos_all$rrate)), vjust=0, fill='grey')+
+  geom_text(aes(label=paste0(round(mean(sim_pos_all$rrate),3)*100,"%"),
+                x=1, ## factor level 1
+                #x=min(as.integer(sim_pos_all$sim)),
+                y=mean(sim_pos_all$rrate)+0.01
+                ), color='blue'
+                )+
+  scale_y_continuous(labels=percent)+
+  labs(x="", y="")
 
 ggplotly(rrp)
 ```
 
-### Distribution of Draws
+### Distribution of Draws - Successful Sims
 
 ```{r}
 ddp <- sim_pos_all %>% ggplot(aes(x=draw_ni))+geom_histogram()+
   scale_x_continuous(labels=dollar)+
   scale_y_continuous(expand=expansion(add=c(0,0.25)))+
   geom_vline(xintercept = mean(sim_pos_all$draw_ni), linetype='dotted', size=1)+
-  geom_text(aes(label=prettyNum(round(mean(sim_pos_all$draw_ni),0), big.mark = ","), x=mean(sim_pos_all$draw_ni),
+  geom_text(aes(label=prettyNum(round(mean(sim_pos_all$draw_ni),0), big.mark = ","),
+                x=mean(sim_pos_all$draw_ni),
                 ## y set to +Inf, which goes to top; requires vjust
-                y=5, hjust=1.2, vjust=0, nudge_x=1))
+                y=5), hjust=1.2, vjust=0, nudge_x=1, color='blue')+
+  labs(x="",y="")
 ggplotly(ddp)
 ```
 

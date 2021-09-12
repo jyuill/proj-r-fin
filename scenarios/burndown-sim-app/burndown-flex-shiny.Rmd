@@ -1,0 +1,385 @@
+---
+title: "Retirement Funding Scenarios"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    vertical_layout: fill
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+library(tidyverse)
+library(scales)
+library(lubridate)
+library(DT)
+library(RColorBrewer)
+library(gridExtra)
+library(here)
+library(plotly)
+
+options(scipen = 10)
+dollar_format(accuracy=1000)
+
+theme_set(theme_bw())
+```
+
+```{r}
+## SET PARAMETERS FOR SIMS
+## number of simulations
+nsims <- 100
+## number of years to simulate
+yrs <- 20
+## parameters for starting, return, draw - exact numbers determined in loop
+## min and max starting balance
+start_min <- 700000
+start_max <- 1000000
+## return rate (real return, after inflation)
+r_mean <- 0.03
+r_sd <- 0.07
+r_max <- 0.20
+## draw 
+draw_min <- 50000
+draw_max <- 75000
+## inflation rate - index draw against this
+inflr <- 0.02
+
+```
+
+```{r}
+## RUN THE SIMS
+sim_all <- data.frame()
+
+for(s in 1:nsims){
+  sim <- s
+  bal_start <- round(runif(n=1, min=start_min, max=start_max),0)
+  bal_start_set <- bal_start
+  bal_start_no_draw <- bal_start
+  sim_sched <- data.frame()
+  for(y in 1:yrs){
+    rrate <- round(min(rnorm(n=1, mean=r_mean, sd=r_sd), r_max), 3)
+    return <- ifelse(bal_start>0,round(bal_start*rrate, 0),0)
+    draw_ni <- min(round(runif(n=1, min=draw_min, max=draw_max),0),bal_start+return)
+    draw <- min(round(draw_ni*(1+inflr)^y,0),bal_start+return)
+    bal_remain <- bal_start+return-draw
+    bal_no_draw <- round(bal_start_no_draw*(1+rrate),0)
+    sim_yr <- data.frame('sim'=sim,
+                        'year'=y,
+                        'start'=bal_start,
+                        'rrate'=rrate,
+                        'return'=return,
+                        'draw_ni'=draw_ni,
+                        'draw'=draw,
+                        'balance'=bal_remain,
+                        'bal_no_draw'=bal_no_draw)
+    sim_sched <- bind_rows(sim_sched, sim_yr)
+    bal_start <- bal_remain
+    bal_start_no_draw <- bal_no_draw
+  }
+  sim_all<- bind_rows(sim_all, sim_sched)
+}
+sim_all$sim <- as.factor(sim_all$sim)
+
+## get sim summary - used to get data to add to sim_all for filtering
+sim_all_smry <- sim_all %>% group_by(sim) %>% summarize(
+  start_bal=first(start),
+  ave_rate=round(mean(rrate),3),
+  ave_draw=round(mean(draw),0),
+  end_bal=last(balance)
+) %>% mutate(
+  success=ifelse(end_bal>0,TRUE, FALSE)
+)
+## add starting balance col to sim_all for easy filtering in shiny
+#sim_all_start <- sim_all_smry %>% select(sim, start_bal)
+sim_all <- left_join(sim_all_smry, sim_all, by='sim')
+
+```
+
+```{r}
+## identify sims where balance > 0 at year 20
+sim_pos <- sim_all[sim_all$year==20 & sim_all$balance>0,]
+sim_pos_rate <- nrow(sim_pos)/nsims
+## filter full list for positive sims only
+sim_pos_filter <- sim_pos %>% select(sim)
+sim_pos_all <- left_join(sim_pos_filter, sim_all, by='sim')
+
+## summarize individual sims
+sim_pos_ind_smry <- sim_pos_all %>% group_by(sim) %>% summarize(
+  start_bal=first(start),
+  ave_rate=round(mean(rrate),3),
+  ave_draw=round(mean(draw),0),
+  end_bal=last(balance)
+)
+```
+
+```{r}
+## STATUS
+sim_all <- sim_all %>% mutate(
+  status=ifelse(balance>0, "money","no_money")
+)
+sim_20 <- sim_all %>% filter(year==20) 
+sim_20$status <- factor(sim_20$status, levels=c('no_money','money'))
+
+## Get Status for selected years
+yr_st <- 10
+sim_check_all <- data.frame()
+for(y in yr_st:20){
+  yr_check <- y
+sim_check <- sim_all %>% filter(year==yr_check) %>% group_by(status) %>% summarize(status_count=n()) %>% mutate(yr=yr_check)
+sim_check_all <- bind_rows(sim_check_all, sim_check)
+}
+## set factor levels for more control
+sim_check_all$status <- factor(sim_check_all$status, levels=c('no_money','money')) 
+## bar chart for split between money / no-money
+# p1 <- sim_check_all %>% ggplot(aes(x=as.factor(yr), y=status_count, fill=status))+geom_col(position='fill')+
+#   scale_y_continuous(labels=percent, expand=expansion(add=c(0,0)))+
+#   scale_fill_manual(values=s_color)+
+#   labs(x='years from start', y='')
+
+## spread data to calc percentages of cases with money
+sim_check_all_wide <- sim_check_all %>% pivot_wider(names_from=status, values_from=status_count) %>% mutate(
+  status_pc=money/(money+no_money)
+) 
+
+sim_pos_yr1 <- sim_pos_all %>% filter(year==1) 
+```
+
+Column {data-width=200, .sidebar}
+-----------------------------------------------------------------------
+
+### Inputs
+
+Number of sims: `r nsims` <br />
+Years: `r yrs` <br />
+
+##### Start Balance
+
+Min.: `r paste0("$",prettyNum(start_min, big.mark=","))` <br />
+Max.: `r paste0("$",prettyNum(start_max, big.mark=","))` <br />
+
+```{r}
+## 1. add input widget
+sliderInput(inputId = 'sbal', label='Starting Bal. Range', min=start_min, max=start_max,
+            step=50000, value=c(start_min, start_max))
+
+## 2. filter data frame with values from widget
+# sim_all_df <- reactive({
+#   sim_all %>% filter(start_bal>=input$sbal[1] & start_bal<=input$sbal[2])
+# })
+```
+
+##### Rates of Return
+
+Ave. rate: `r paste0(r_mean*100,"%")` <br />
+Std. dev: `r paste0(r_sd*100, "%")` <br />
+Max: `r paste0(r_max*100, "%")` 
+
+```{r}
+## 1. add input widget
+sliderInput(inputId='arr', label="Ave. Return Range",
+            min=min(sim_all$ave_rate),
+            max=max(sim_all$ave_rate),
+            step=0.005,
+            value=c(min(sim_all$ave_rate), max(sim_all$ave_rate)))
+
+## 2. filter data frame
+# sim_all_df <- reactive({
+#   sim_all %>% filter(start_bal>=input$sbal[1] & start_bal<=input$sbal[2] & ave_rate>=input$arr[1] & ave_rate<=input$arr[2])
+# })
+```
+
+##### Annual Draws
+
+Min.: `r dollar(draw_min)` <br />
+Max.: `r dollar(draw_max)` <br />
+
+```{r}
+## 1. add input widget
+sliderInput(inputId='avdraws', label="Ave. Draw Range",
+            min=min(sim_all$ave_draw), max=max(sim_all$ave_draw),
+            value=c(min(sim_all$ave_draw), max(sim_all$ave_draw)))
+
+## 2. filter data frame - combining inputs above
+sim_all_df <- reactive({
+  sim_all %>% filter(start_bal>=input$sbal[1] & start_bal<=input$sbal[2] & ave_rate>=input$arr[1] & ave_rate<=input$arr[2] & ave_draw>=input$avdraws[1] & ave_draw<=input$avdraws[2])
+})
+```
+
+#### End Balance > 0
+
+```{r}
+## 1. add input widget
+checkboxInput(inputId="success", label="20 yr pos. bal. only", value=FALSE)
+
+## 2. filter data frame - combining inputs above
+sim_all_df <- reactive({
+  sim_all %>% filter(start_bal>=input$sbal[1] & start_bal<=input$sbal[2] & ave_rate>=input$arr[1] & ave_rate<=input$arr[2] & ave_draw>=input$avdraws[1] & ave_draw<=input$avdraws[2] & if(input$success==TRUE) success==input$success else
+    success==TRUE|success==FALSE)
+})
+
+```
+
+#### Inflation Rate
+
+Ave. inflation: `r paste0(inflr*100,"%")`
+
+### Results
+
+##### % chance positive
+
+10 yr: `r paste0(sim_check_all_wide[sim_check_all_wide$yr==10,'status_pc']*100,"%")` <br />
+15 yr: `r paste0(sim_check_all_wide[sim_check_all_wide$yr==15,'status_pc']*100,"%")` <br />
+20 yr: `r paste0(sim_check_all_wide[sim_check_all_wide$yr==20,'status_pc']*100,"%")` <br />
+
+##### Ave. stats for 20 yr
+
+Ave. start bal: `r dollar(round(mean(sim_pos_yr1$start),-3))` <br />
+Ave. rate: `r paste0(round(mean(sim_pos_all$rrate),3)*100,"%")` <br >
+Ave. draw: `r dollar(round(mean(sim_pos_all$draw_ni),-3))`
+
+Column {data-width=450}
+-----------------------------------------------------------------------
+
+### Simulation Results
+
+```{r}
+## 3. render plot (using renderPlot for ggplot or renderPlolty for plotly)
+## based on filtered values from input
+## ensure data source is expressed as function
+renderPlotly ({
+  psim <- sim_all_df() %>% ggplot(aes(x=year, y=balance, color=sim))+geom_line()+
+  geom_hline(yintercept=0)+
+  scale_x_continuous(expand=c(0,0))+
+  scale_y_continuous(labels=dollar, expand=expansion(mult=c(0,0.01)))+
+  theme(legend.position = 'none')+
+  labs(y="", x="year from start")
+
+  ggplotly(psim)
+})
+
+```
+
+### % of Sims with Positive Bal Each Yr
+
+```{r}
+## line chart showing percent with money each yr
+p2 <- sim_check_all_wide %>% ggplot(aes(x=as.factor(yr), y=status_pc))+geom_line(group=1)+
+  scale_y_continuous(labels=percent, expand=c(0,0), limit=c(0,1))+
+  scale_x_discrete(expand=c(0,0))+
+  labs(x='years from start', y='% of simulations')
+
+ggplotly(p2)
+```
+
+Column {data-width=350}
+-----------------------------------------------------------------------
+
+### Starting Balanaces
+
+```{r}
+## filter new data frame for summary
+sim_all_smry_df <- reactive({
+  sim_all_smry %>% filter(start_bal>=input$sbal[1] & start_bal<=input$sbal[2] & ave_rate>=input$arr[1] & ave_rate<=input$arr[2] & ave_draw>=input$avdraws[1] & ave_draw<=input$avdraws[2] & if(input$success==TRUE) success==input$success else
+    success==TRUE|success==FALSE)
+})
+
+## render based on sim_all filtered
+renderPlotly({
+  spybal <- sim_all_smry_df() %>% ggplot(aes(x=start_bal))+geom_histogram()+
+  scale_x_continuous(labels=dollar)+
+  scale_y_continuous(expand=expansion(add=c(0,0.5)))+
+  geom_vline(xintercept = mean(sim_all_smry_df()$start_bal), linetype='dotted', size=1.2)+
+  geom_text(aes(label=prettyNum(round(mean(sim_all_smry_df()$start_bal),0), big.mark = ","),
+                x=mean(sim_all_smry_df()$start_bal),
+                ## y set to +Inf which goes to top - but not plotly
+            y=1),
+            color='blue', hjust=0, vjust=0)+
+  labs(x="", y="")
+ggplotly(spybal)
+})
+
+# 
+# spybal <- sim_pos_yr1 %>% ggplot(aes(x=start))+geom_histogram()+
+#   scale_x_continuous(labels=dollar)+
+#   scale_y_continuous(expand=expansion(add=c(0,0.5)))+
+#   geom_vline(xintercept = mean(sim_pos_yr1$start), linetype='dotted', size=1.2)+
+#   geom_text(aes(label=prettyNum(round(mean(sim_pos_yr1$start),0), big.mark = ","),
+#                 x=mean(sim_pos_yr1$start),
+#                 ## y set to +Inf which goes to top - but not plotly
+#             y=max(1, nrow(sim_pos)/3)),
+#             color='blue', hjust=0, vjust=0)+
+#   labs(x="", y="")
+# ggplotly(spybal)
+```
+
+### Distribution of Rate of Return
+
+```{r}
+chart_title <- 'Distributions in Annual Returns'
+renderPlotly({
+  rrp <- sim_all_df() %>% ggplot(aes(x=sim, y=rrate))+geom_boxplot()+
+  geom_hline(yintercept = 0)+
+  geom_hline(yintercept = mean(sim_all_df()$rrate), linetype='dotted', size=1)+
+  ## geom_label works beautifully in ggplot but not plotly
+  # geom_label(aes(label=paste0(round(mean(sim_pos_all$rrate),3)*100,"%"),
+  #                      x=1,
+  #                      y=mean(sim_pos_all$rrate)), vjust=0, fill='grey')+
+  geom_text(aes(label=paste0(round(mean(sim_all_df()$rrate),3)*100,"%"),
+                x=1, ## factor level 1
+                #x=min(as.integer(sim_pos_all$sim)),
+                y=mean(sim_all_df()$rrate)+0.01
+                ), color='blue'
+                )+
+  scale_y_continuous(labels=percent)+
+  labs(x="", y="")
+
+ggplotly(rrp)
+})
+## original
+# rrp <- sim_pos_all %>% ggplot(aes(x=sim, y=rrate))+geom_boxplot()+
+#   geom_hline(yintercept = 0)+
+#   geom_hline(yintercept = mean(sim_pos_all$rrate), linetype='dotted', size=1)+
+#   ## geom_label works beautifully in ggplot but not plotly
+#   # geom_label(aes(label=paste0(round(mean(sim_pos_all$rrate),3)*100,"%"),
+#   #                      x=1,
+#   #                      y=mean(sim_pos_all$rrate)), vjust=0, fill='grey')+
+#   geom_text(aes(label=paste0(round(mean(sim_pos_all$rrate),3)*100,"%"),
+#                 x=1, ## factor level 1
+#                 #x=min(as.integer(sim_pos_all$sim)),
+#                 y=mean(sim_pos_all$rrate)+0.01
+#                 ), color='blue'
+#                 )+
+#   scale_y_continuous(labels=percent)+
+#   labs(x="", y="")
+# 
+# ggplotly(rrp)
+```
+
+### Distribution of Draws (no inflation)
+
+```{r}
+renderPlotly({
+  ddp <- sim_all_df() %>% filter(draw_ni>0) %>% ggplot(aes(x=draw_ni))+geom_histogram()+
+  scale_x_continuous(labels=dollar)+
+  scale_y_continuous(expand=expansion(add=c(0,0.25)))+
+  geom_vline(xintercept = mean(sim_all_df()$draw_ni), linetype='dotted', size=1)+
+  geom_text(aes(label=prettyNum(round(mean(sim_all_df()$draw_ni),0), big.mark = ","),
+                x=mean(sim_all_df()$draw_ni),
+                ## y set to +Inf, which goes to top; requires vjust
+                y=5), hjust=1.2, vjust=0, nudge_x=1, color='blue')+
+  labs(x="",y="")
+ggplotly(ddp)
+})
+## original
+# ddp <- sim_pos_all %>% ggplot(aes(x=draw_ni))+geom_histogram()+
+#   scale_x_continuous(labels=dollar)+
+#   scale_y_continuous(expand=expansion(add=c(0,0.25)))+
+#   geom_vline(xintercept = mean(sim_pos_all$draw_ni), linetype='dotted', size=1)+
+#   geom_text(aes(label=prettyNum(round(mean(sim_pos_all$draw_ni),0), big.mark = ","),
+#                 x=mean(sim_pos_all$draw_ni),
+#                 ## y set to +Inf, which goes to top; requires vjust
+#                 y=5), hjust=1.2, vjust=0, nudge_x=1, color='blue')+
+#   labs(x="",y="")
+# ggplotly(ddp)
+```
+

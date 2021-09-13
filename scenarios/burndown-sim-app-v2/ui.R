@@ -31,7 +31,7 @@ shinyUI(fluidPage(
     # Sidebar with a slider input for number of bins
     sidebarLayout(
         sidebarPanel(
-            numericInput(inputId='nsims', '# of Simulations', value=5, min=1, max=5000, step=50),
+            numericInput(inputId='nsims', '# of Simulations', value=100, min=1, max=5000, step=50),
             numericInput(inputId='nyrs', "# of Yrs", value=20, min=5, max=30, step=1),
             sliderInput(inputId = 'sbal', label='Starting Bal. Range', min=650000, max=1500000,
                         step=50000, value=c(700000, 1000000), pre="$"),

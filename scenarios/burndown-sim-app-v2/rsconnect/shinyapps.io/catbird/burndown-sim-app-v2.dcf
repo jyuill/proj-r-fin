@@ -1,0 +1,14 @@
+name: burndown-sim-app-v2
+title: burndown-sim-app-v2
+username:
+account: catbird
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 4637863
+bundleId: 5025996
+url: https://catbird.shinyapps.io/burndown-sim-app-v2/
+when: 1631493207.76381
+lastSyncTime: 1631493207.76383
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: burndown-flex-shiny.Rmd

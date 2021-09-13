@@ -149,7 +149,7 @@ shinyServer(function(input, output) {
             scale_x_continuous(expand=c(0,0))+
             scale_y_continuous(labels=dollar, expand=expansion(mult=c(0,0.01)))+
             theme(legend.position = 'none')+
-            labs(y="", x="year from start")
+            labs(title="Burndown for the Simulations", y="", x="year from start")
         #sim_all() %>% ggplot(aes(x=year, y=balance, color=sim))+geom_line()
         
         ggplotly(psim)
@@ -161,7 +161,7 @@ shinyServer(function(input, output) {
             geom_line(group=1)+
             scale_y_continuous(labels=percent, expand=c(0,0), limit=c(0,1))+
             scale_x_discrete(expand=c(0,0))+
-            labs(x='years from start', y='% of simulations')
+            labs(title="% of Sims with Money at each Yr.", x='years from start', y='% of simulations')
         ggplotly(p2)
     })
     

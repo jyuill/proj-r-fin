@@ -24,6 +24,7 @@ library(RColorBrewer)
 library(kableExtra)
 library(formattable)
 library(gridExtra)
+library(plotly)
 
 theme_set(theme_light())
 options(scipen = 20)
@@ -98,7 +99,10 @@ ct1 <- curr_trans %>% ggplot(aes(x=date_trans, y=acb))+geom_col()+
 ct2 <- curr_trans %>% ggplot(aes(x=date_trans, y=cumunits_calc))+geom_col()+
   labs(x="")
 
-grid.arrange(ct1, ct2, nrow=1)
+#grid.arrange(ct1, ct2, nrow=1)
+## subplot instead of grid.arrange for plotly charts
+subplot(ggplotly(ct1), ggplotly(ct2), nrows=1)
+
 ## SAVE (session) for currency
 btc_trans_save <- curr_trans
 
@@ -115,8 +119,8 @@ btc_trans_save <- curr_trans
 ```{r}
 ### PRICE DATA
 btc <- getSymbols(Symbols="BTC-CAD", auto.assign=FALSE)
-## remove today
-btc <- btc[1:nrow(btc)-1,]
+## remove today - or not, in order to get latest price
+#btc <- btc[1:nrow(btc)-1,]
 
 ## match dates with cost data
 dt_start <- as.character(min(curr_trans$date_trans))
@@ -176,8 +180,11 @@ pcp2 <- curr_price_cost %>% ggplot(aes(x=date, y=profit))+geom_col(aes(fill=prof
   theme(legend.position = "none")+ ## hide legend - not needed
   labs(title=chart_title, x="")
 
-grid.arrange(pcp1, pcp2, nrow=1)
-
+#grid.arrange(pcp1, pcp2, nrow=1)
+## plotly version - using subplot
+pcp1_p <- ggplotly(pcp1)
+pcp2_p <- ggplotly(pcp2)
+subplot(pcp1_p, pcp2_p, nrows=1)
 ```
 
 ### Ethereum
@@ -214,7 +221,9 @@ curr_trans <- curr_trans %>%
 
 ct1 <- curr_trans %>% ggplot(aes(x=date_trans, y=acb))+geom_col()
 ct2 <- curr_trans %>% ggplot(aes(x=date_trans, y=cumunits_calc))+geom_col()
-grid.arrange(ct1, ct2, nrow=1)
+#grid.arrange(ct1, ct2, nrow=1)
+## subplot instead of grid.arrange for plotly charts
+subplot(ggplotly(ct1), ggplotly(ct2), nrows=1)
 
 ## SAVE (session) for currency
 eth_trans_save <- curr_trans
@@ -227,8 +236,8 @@ symbol <- "ETH-CAD" ## used in getSymbols call and chart titles
 price_col <- "ETH-CAD.Close" ## needed for column references at several points below
 
 curr <- getSymbols(Symbols=symbol, auto.assign=FALSE)
-## remove today - empty
-curr <- curr[1:nrow(curr)-1,]
+## remove today - or not, to get latest data
+#curr <- curr[1:nrow(curr)-1,]
 
 ## match dates with cost data
 dt_start <- as.character(min(curr_trans$date_trans))
@@ -238,7 +247,6 @@ curr_price <- curr[paste0(dt_start,"/"),price_col]
 ```
 
 ```{r}
-
 ## convert ta data frame and combine with cost data
 curr_price_df <- as.data.frame(curr_price)
 curr_price_df$date <- date(row.names(curr_price_df))
@@ -293,7 +301,11 @@ pcp2 <- curr_price_cost %>% ggplot(aes(x=date, y=profit))+geom_col(aes(fill=prof
   scale_fill_manual(values = setNames(c(profit,loss),c(T, F)))+ ## manual color based on condition
   theme(legend.position = "none")+ ## hide legend - not needed
   labs(title=chart_title, x="")
-grid.arrange(pcp1, pcp2, nrow=1)
+#grid.arrange(pcp1, pcp2, nrow=1)
+## plotly version - using subplot
+pcp1_p <- ggplotly(pcp1)
+pcp2_p <- ggplotly(pcp2)
+subplot(pcp1_p, pcp2_p, nrows=1)
 ```
 
 ### Cardano
@@ -330,7 +342,9 @@ curr_trans <- curr_trans %>%
 
 ct1 <- curr_trans %>% ggplot(aes(x=date_trans, y=acb))+geom_col()
 ct2 <- curr_trans %>% ggplot(aes(x=date_trans, y=cumunits_calc))+geom_col()
-grid.arrange(ct1, ct2, nrow=1)
+#grid.arrange(ct1, ct2, nrow=1)
+## subplot instead of grid.arrange for plotly charts
+subplot(ggplotly(ct1), ggplotly(ct2), nrows=1)
 
 ## SAVE (session) for currency
 ada_trans_save <- curr_trans
@@ -344,8 +358,8 @@ symbol <- "ADA-CAD" ## used in getSymbols call and chart titles
 price_col <- "ADA-CAD.Close" ## needed for column references at several points below
 
 curr <- getSymbols(Symbols=symbol, auto.assign=FALSE)
-## remove today - empty
-curr <- curr[1:nrow(curr)-1,]
+## remove today - or not if want latest price data
+#curr <- curr[1:nrow(curr)-1,]
 
 ## match dates with cost data
 dt_start <- as.character(min(curr_trans$date_trans))
@@ -405,8 +419,11 @@ pcp2 <- curr_price_cost %>% ggplot(aes(x=date, y=profit))+geom_col(aes(fill=prof
   theme(legend.position = "none")+ ## hide legend - not needed
   labs(title=chart_title, x="")
   
-grid.arrange(pcp1, pcp2, nrow=1)
-
+#grid.arrange(pcp1, pcp2, nrow=1)
+## plotly version - using subplot
+pcp1_p <- ggplotly(pcp1)
+pcp2_p <- ggplotly(pcp2)
+subplot(pcp1_p, pcp2_p, nrows=1)
 ```
 
 ### Litecoin
@@ -443,7 +460,9 @@ curr_trans <- curr_trans %>%
 
 ct1 <- curr_trans %>% ggplot(aes(x=date_trans, y=acb))+geom_col()
 ct2 <- curr_trans %>% ggplot(aes(x=date_trans, y=cumunits_calc))+geom_col()
-grid.arrange(ct1, ct2, nrow=1)
+#grid.arrange(ct1, ct2, nrow=1)
+## subplot instead of grid.arrange for plotly charts
+subplot(ggplotly(ct1), ggplotly(ct2), nrows=1)
 
 ## SAVE (session) for currency
 ltc_trans_save <- curr_trans
@@ -458,8 +477,8 @@ symbol <- "LTC-CAD" ## used in getSymbols call and chart titles
 price_col <- "LTC-CAD.Close" ## needed for column references at several points below
 
 curr <- getSymbols(Symbols=symbol, auto.assign=FALSE)
-## remove today - empty
-curr <- curr[1:nrow(curr)-1,]
+## remove today - or not for latest price data
+#curr <- curr[1:nrow(curr)-1,]
 
 ## match dates with cost data
 dt_start <- as.character(min(curr_trans$date_trans))
@@ -520,8 +539,11 @@ pcp2 <- curr_price_cost %>% ggplot(aes(x=date, y=profit))+geom_col(aes(fill=prof
   theme(legend.position = "none")+ ## hide legend - not needed
   labs(title=chart_title, x="")
   
-grid.arrange(pcp1, pcp2, nrow=1)
-
+#grid.arrange(pcp1, pcp2, nrow=1)
+## plotly version - using subplot
+pcp1_p <- ggplotly(pcp1)
+pcp2_p <- ggplotly(pcp2)
+subplot(pcp1_p, pcp2_p, nrows=1)
 ```
 
 ### TOTALS

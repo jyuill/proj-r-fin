@@ -321,7 +321,7 @@ subplot(pcp1_p, pcp2_p, nrows=1)
 #### Adjusted Cost Base (Avg Cost)
 
 ```{r, fig.height=3, fig.width=9}
-## ethereum
+## cardano
 currency <- 'ADA'
 curr_trans <- ktrans %>% filter(Currency==currency)
 curr_trans$Date <- ymd_hms(curr_trans$Date) ## format timestamp
@@ -348,8 +348,8 @@ curr_trans <- curr_trans %>%
     acb=cumcost_calc/cumunits_calc
   )
 
-ct1 <- curr_trans %>% ggplot(aes(x=date_trans, y=acb))+geom_col()
-ct2 <- curr_trans %>% ggplot(aes(x=date_trans, y=cumunits_calc))+geom_col()
+ct1 <- curr_trans %>% ggplot(aes(x=date_trans, y=acb))+geom_col(position=position_dodge2())
+ct2 <- curr_trans %>% ggplot(aes(x=date_trans, y=cumunits_calc))+geom_col(position=position_dodge2())
 #grid.arrange(ct1, ct2, nrow=1)
 ## subplot instead of grid.arrange for plotly charts
 subplot(ggplotly(ct1), ggplotly(ct2), nrows=1)
@@ -460,8 +460,8 @@ curr_trans <- curr_trans %>%
     acb=cumcost_calc/cumunits_calc
   )
 
-ct1 <- curr_trans %>% ggplot(aes(x=date_trans, y=acb))+geom_col()
-ct2 <- curr_trans %>% ggplot(aes(x=date_trans, y=cumunits_calc))+geom_col()
+ct1 <- curr_trans %>% ggplot(aes(x=date_trans, y=acb))+geom_col(position=position_dodge2())
+ct2 <- curr_trans %>% ggplot(aes(x=date_trans, y=cumunits_calc))+geom_col(position=position_dodge2())
 #grid.arrange(ct1, ct2, nrow=1)
 ## subplot instead of grid.arrange for plotly charts
 subplot(ggplotly(ct1), ggplotly(ct2), nrows=1)

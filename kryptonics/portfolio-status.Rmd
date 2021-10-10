@@ -69,6 +69,101 @@ ktrans <- ktrans[,1:7]
 curr_profits <- data.frame()
 ```
 
+```{r FUNCTIONS}
+
+## calculate average cost base
+acb <- function(currency){
+  curr_trans <- ktrans %>% filter(Currency==currency)
+  curr_trans$Date <- ymd_hms(curr_trans$Date)
+  curr_trans$date_trans <- date(curr_trans$Date)
+  
+  ## calc average cost (adjusted cost base)
+## 2 aspects:
+## - 1. basic: cumulative amount spent / cumulative units acquired (weighted average)
+## - 2. account for sales: need to remove the units sold from cumulative total and 
+##   reduce amount spent by number of units sold at a value of previous acb
+curr_trans <- curr_trans %>% 
+  mutate(
+    units_calc=ifelse(Activity=='trade-buy',Amount,Amount* -1),
+    cumunits_calc=cumsum(units_calc),
+    cost_calc=ifelse(Activity=='trade-buy',`CAD Amount`,0),
+    cost_sell_calc=ifelse(Activity=='trade-sell',units_calc*(cumsum(cost_calc)/lag(cumunits_calc)),0),
+    cumcost_calc=ifelse(Activity=='trade-buy',cumsum(cost_calc)+cumsum(cost_sell_calc),cumsum(cost_calc)-abs(units_calc)*(cumsum(cost_calc)/lag(cumunits_calc))),
+    acb=cumcost_calc/cumunits_calc
+  )
+  return(curr_trans)
+}
+
+## generate transaction charts
+curr_trans_chart <- function(){
+  ct1 <- curr_trans %>% ggplot(aes(x=date_trans, y=acb))+geom_col()+
+    scale_y_continuous(labels=dollar)+
+    labs(x="")
+  ct2 <- curr_trans %>% ggplot(aes(x=date_trans, y=cumunits_calc))+geom_col()+
+    labs(x="")
+  return(list(ct1, ct2))
+}
+
+### PRICE DATA
+price <- function(currency, symbol){
+  symbol_price <- getSymbols(Symbols=symbol, auto.assign=FALSE)
+  ## match dates with cost data
+  dt_start <- as.character(min(curr_trans$date_trans))
+  ## GENERIC object name for easy re-use
+  symbol_close <- paste0(symbol,".Close")
+  curr_price <- symbol_price[paste0(dt_start,"/"),symbol_close]
+  ## convert ta data frame and combine with cost data
+  curr_price_df <- as.data.frame(curr_price)
+  curr_price_df$date <- date(row.names(curr_price_df))
+  row.names(curr_price_df) <- seq(1:nrow(curr_price_df))
+  curr_price_df <- curr_price_df %>% select(date, symbol_close)
+ 
+  ## COMBINE with cost data
+  ## get essential cols from trans 
+  curr_trans_smry <- curr_trans %>% select(Date, date_trans, cumunits_calc, cumcost_calc, acb)
+  ## need to have only one entry per date -> if there are multiple, should be last item for any date
+  curr_trans_last <- curr_trans_smry %>% group_by(date_trans) %>%   summarize(cumunits_calc=last(cumunits_calc),
+                                                                        cumcost_calc=last(cumcost_calc),
+                                                                        acb=last(acb)
+                                                                        ) %>%
+  rename(date=date_trans)
+
+  ## join price and cost data
+  curr_price_cost <- full_join(curr_price_df, curr_trans_last, by='date')
+  ## fill in NA values with previous value
+  curr_price_cost <- na.locf(curr_price_cost) 
+  
+  ## CALC PROFIT on any given day
+curr_price_cost <- curr_price_cost %>% mutate(
+  ## use col reference so works regardless of col name (which will be based on currency)
+  market_val=curr_price_cost[[2]]*cumunits_calc,
+  book_val=cumunits_calc*acb,
+  profit=market_val-book_val
+)
+
+## CALC PROFIT AND ROI to date - compile for currencies
+curr_profit <- curr_price_cost %>% slice_tail() %>% select(date, market_val, book_val, profit) %>%
+  mutate(currency=currency,
+         roi=market_val/book_val-1)
+curr_profits <- bind_rows(curr_profits, curr_profit)
+
+}
+
+
+
+
+##======================
+## TEST AREA
+ct <- acb('BTC')
+curr_trans <- ct
+ct_chart <- curr_trans_chart()
+
+#subplot(ggplotly(ct_chart[[1]]), ggplotly(ct_chart[[2]]), nrows=1)
+
+price_data <- price('BTC','BTC-CAD') 
+```
+
+
 ### Bitcoin
 
 #### Adjusted Cost Base (Avg Cost)

@@ -187,19 +187,28 @@ price_cost_charts <- function(curr_price_cost, symbol){
 }
 
 ## simple function to get/format latest price and cost data for table
-price_acb <- function(curr_price_cost){
+## set table to hold all curr results for totals at end
+acb_price_all <- data.frame()
+price_acb <- function(curr_price_cost, symbol){
   ## get of the col with specific asset price
-  cprice_col <- colnames(curr_price_cost)[2]
   ## use {{ }} to reference the variable col name
   ## use := to manipulate variable col name in mutate
   ## use .[[3]] to reference second col (specific asset price)
   ##  in mutate formula - {{ }} doesn't work in that context
-  curr_price_cost %>% filter(date==max(curr_price_cost$date)) %>% 
-  select(date, acb, {{cprice_col}}) %>%
-    mutate(diff=percent((.[[3]])/acb-1),
-      {{cprice_col}} := currency(.[[3]]),
-           acb=currency(acb),
-           )
+  cpc_tbl <- curr_price_cost %>% filter(date==max(curr_price_cost$date)) 
+  cpc_tbl <- cpc_tbl %>% mutate(symb=symbol,
+                                price_close=.[[2]]) %>%
+    select(date, symb, acb, price_close) %>%
+    mutate(diff=price_close/acb-1)
+  ## add rows to running table all currencies
+  acb_price_all <- bind_rows(acb_price_all, cpc_tbl)
+  ## format cols
+  cpc_tbl <- cpc_tbl %>% mutate(
+    acb=currency(acb),
+    price_close=currency(price_close),
+    diff=percent(diff)
+  )
+  return(list(cpc_tbl, acb_price_all))
 }
 
 ```
@@ -222,8 +231,12 @@ curr_price_cost <- price_cost_data[[1]]
 curr_profits <- price_cost_data[[3]]
 
 ## print key info using price data and acb for symbol
-price_acb(curr_price_cost) %>% kable() %>% 
-  kable_styling(full_width = FALSE, position='left')
+pacb <- price_acb(curr_price_cost, symbol) 
+## first object as table
+pacb[[1]] %>% kable() %>% 
+  kable_styling(position='left', full_width = FALSE)
+## second object overall table
+acb_price_all <- pacb[[2]]
 ```
 
 #### Transactions & Adjusted Cost Base (Avg Cost)
@@ -267,8 +280,10 @@ curr_price_cost <- price_cost_data[[1]]
 curr_profits <- price_cost_data[[3]]
 
 ## print key info using price data and acb for symbol
-price_acb(curr_price_cost) %>% kable() %>% 
-  kable_styling(full_width = FALSE, position='left')
+pacb <- price_acb(curr_price_cost, symbol) 
+pacb[[1]] %>% kable() %>% 
+  kable_styling(position='left', full_width = FALSE)
+acb_price_all <- pacb[[2]]
 ```
 
 #### Transactions & Adjusted Cost Base (Avg Cost)
@@ -306,8 +321,10 @@ curr_price_cost <- price_cost_data[[1]]
 curr_profits <- price_cost_data[[3]]
 
 ## print key info using price data and acb for symbol
-price_acb(curr_price_cost) %>% kable() %>% 
-  kable_styling(full_width = FALSE, position='left')
+pacb <- price_acb(curr_price_cost, symbol) 
+pacb[[1]] %>% kable() %>% 
+  kable_styling(position='left', full_width = FALSE)
+acb_price_all <- pacb[[2]]
 ```
 
 #### Transactions & Adjusted Cost Base (Avg Cost)
@@ -344,8 +361,10 @@ curr_price_cost <- price_cost_data[[1]]
 curr_profits <- price_cost_data[[3]]
 
 ## print key info using price data and acb for symbol
-price_acb(curr_price_cost) %>% kable() %>% 
-  kable_styling(full_width = FALSE, position='left')
+pacb <- price_acb(curr_price_cost, symbol) 
+pacb[[1]] %>% kable() %>% 
+  kable_styling(position='left', full_width = FALSE)
+acb_price_all <- pacb[[2]]
 ```
 
 #### Transactions & Adjusted Cost Base (Avg Cost)
@@ -382,8 +401,10 @@ curr_price_cost <- price_cost_data[[1]]
 curr_profits <- price_cost_data[[3]]
 
 ## print key info using price data and acb for symbol
-price_acb(curr_price_cost) %>% kable() %>% 
-  kable_styling(full_width = FALSE, position='left')
+pacb <- price_acb(curr_price_cost, symbol) 
+pacb[[1]] %>% kable() %>% 
+  kable_styling(position='left', full_width = FALSE)
+acb_price_all <- pacb[[2]]
 ```
 
 #### Transactions & Adjusted Cost Base (Avg Cost)
@@ -403,7 +424,23 @@ pc_charts <- price_cost_charts(curr_price_cost, symbol)
 subplot(ggplotly(pc_charts[[1]]), ggplotly(pc_charts[[2]]), nrows=1)
 ```
 
-### TOTALS
+### PRICE-COST SMRY
+
+```{r, fig.height=3, width=3.5}
+## print price and cost table - using formattable functions to format numbers
+acb_price_all %>% ggplot(aes(x=symb, y=diff))+geom_col()+
+  scale_y_continuous(labels=percent)+
+  labs(title="Price vs Avg Cost", x="", y="% Diff: Price to ACB")
+
+acb_price_all %>%
+  mutate(acb=currency(acb),
+         price_close=currency(price_close),
+         diff=percent(diff)) %>%
+  kable %>%
+  kable_styling()
+```
+
+### TOTALS - Returns
 
 ```{r, fig.height=3.5, fig.width=9}
 #kable(curr_profits)

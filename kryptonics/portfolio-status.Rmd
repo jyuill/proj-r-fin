@@ -186,51 +186,7 @@ price_cost_charts <- function(curr_price_cost, symbol){
   return(list(pcp1_p, pcp2_p))
 }
 
-```
-
-### Bitcoin
-
-```{r}
-
-```
-
-
-#### Transactions & Adjusted Cost Base (Avg Cost)
-
-```{r, fig.height=3, fig.width=9}
-## transaction, avg cost data
-currency <- 'BTC'
-ct <- acb(currency) ## function for ave cost data
-curr_trans <- ct ## rename to match existing code
-
-## print charts
-ct_chart <- curr_trans_chart() ## get charts
-ggplotly(ct_chart[[1]])
-subplot(ggplotly(ct_chart[[2]]), ggplotly(ct_chart[[3]]), nrows=1)
-
-## SAVE (session) for currency
-btc_trans_save <- curr_trans
-
-```
-
-#### Prices, Costs, Profits
-
-* Cdn dollar value
-
-1. Get latest price data.
-2. Combine with cost data.
-3. Calculate profit and ROI.
-
-```{r}
-### PRICE & COST DATA
-symbol <- 'BTC-CAD'
-price_cost_data <- price(currency, symbol) 
-curr_price_cost <- price_cost_data[[1]]
-curr_profits <- price_cost_data[[3]]
-```
-
-```{r}
-## function to get latest price and cost data for table
+## simple function to get/format latest price and cost data for table
 price_acb <- function(curr_price_cost){
   ## get of the col with specific asset price
   cprice_col <- colnames(curr_price_cost)[2]
@@ -245,11 +201,47 @@ price_acb <- function(curr_price_cost){
            acb=currency(acb),
            )
 }
+
+```
+
+### Bitcoin
+
+```{r}
+## get transaction, avg cost data for this currency
+currency <- 'BTC'
+ct <- acb(currency) ## function for ave cost data
+curr_trans <- ct ## rename to match existing code
+
+## SAVE (session) for currency
+btc_trans_save <- curr_trans
+
+### PRICE & COST DATA
+symbol <- 'BTC-CAD'
+price_cost_data <- price(currency, symbol) 
+curr_price_cost <- price_cost_data[[1]]
+curr_profits <- price_cost_data[[3]]
+
 ## print key info using price data and acb for symbol
 price_acb(curr_price_cost) %>% kable() %>% 
   kable_styling(full_width = FALSE, position='left')
 ```
 
+#### Transactions & Adjusted Cost Base (Avg Cost)
+
+```{r, fig.height=3, fig.width=9}
+## print charts
+ct_chart <- curr_trans_chart() ## get charts
+ggplotly(ct_chart[[1]])
+subplot(ggplotly(ct_chart[[2]]), ggplotly(ct_chart[[3]]), nrows=1)
+```
+
+#### Prices, Costs, Profits
+
+* Cdn dollar value
+
+1. Get latest price data.
+2. Combine with cost data.
+3. Calculate profit and ROI.
 
 ```{r, fig.height=4, fig.width=9}
 ## Price v Cost charts
@@ -259,35 +251,36 @@ subplot(ggplotly(pc_charts[[1]]), ggplotly(pc_charts[[2]]), nrows=1)
 
 ### Ethereum
 
-#### Transactions & Adjusted Cost Base (Avg Cost)
-
-```{r, fig.height=3, fig.width=9}
-## ethereum
+```{r}
+## get transaction, avg cost data for this currency
 currency <- 'ETH'
 ct <- acb(currency) ## function for ave cost data
 curr_trans <- ct ## rename to match existing code
-ct_chart <- curr_trans_chart() ## get charts
-ggplotly(ct_chart[[1]])
-subplot(ggplotly(ct_chart[[2]]), ggplotly(ct_chart[[3]]), nrows=1)
 
 ## SAVE (session) for currency
 eth_trans_save <- curr_trans
-```
 
-#### Price, Costs, Profits
-
-```{r}
-### Price Data
-symbol <- "ETH-CAD" ## used in getSymbols call and chart titles
+### PRICE & COST DATA
+symbol <- 'ETH-CAD'
 price_cost_data <- price(currency, symbol) 
 curr_price_cost <- price_cost_data[[1]]
 curr_profits <- price_cost_data[[3]]
+
+## print key info using price data and acb for symbol
+price_acb(curr_price_cost) %>% kable() %>% 
+  kable_styling(full_width = FALSE, position='left')
 ```
 
-```{r}
-## print key info using price data and acb for symbol
-price_acb(curr_price_cost) %>% kable() %>% kable_styling(full_width = FALSE)
+#### Transactions & Adjusted Cost Base (Avg Cost)
+
+```{r, fig.height=3, fig.width=9}
+## print charts
+ct_chart <- curr_trans_chart() ## get charts
+ggplotly(ct_chart[[1]])
+subplot(ggplotly(ct_chart[[2]]), ggplotly(ct_chart[[3]]), nrows=1)
 ```
+
+#### Price, Costs, Profits
 
 ```{r, fig.height=4, fig.width=9}
 ### PRICE V COST charts

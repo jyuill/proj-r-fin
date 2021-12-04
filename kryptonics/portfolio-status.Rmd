@@ -426,19 +426,39 @@ subplot(ggplotly(pc_charts[[1]]), ggplotly(pc_charts[[2]]), nrows=1)
 
 ### PRICE-COST SMRY
 
-```{r, fig.height=3, width=3.5}
-## print price and cost table - using formattable functions to format numbers
-acb_price_all %>% ggplot(aes(x=symb, y=diff))+geom_col()+
-  scale_y_continuous(labels=percent)+
-  labs(title="Price vs Avg Cost", x="", y="% Diff: Price to ACB")
+```{r, fig.height=3, fig.width=8}
+## print price and cost chart
+# acb_price_all %>% select(date, symb, acb, price_close) %>% 
+#   pivot_longer(cols=c(acb, price_close), names_to="price_cost",
+#                                values_to="value") %>%
+#   ggplot(aes(x=symb, y=value, fill=price_cost))+geom_col(position=position_dodge())+
+#   scale_y_continuous(labels=dollar)+
+#   labs(title="Price vs Avg Cost", x="", y="$")
 
+acbd <- acb_price_all %>% select(date, symb, acb, price_close) %>% 
+  pivot_longer(cols=c(acb, price_close), names_to="price_cost",
+                               values_to="value") %>%
+  ggplot(aes(x=price_cost, y=value))+geom_col(position=position_dodge())+
+  facet_wrap(~symb, scales='free_y')+
+  scale_y_continuous(labels=dollar)+
+  labs(title="Price vs Avg Cost", x="", y="$")
+
+acbp <- acb_price_all %>% ggplot(aes(x=symb, y=diff))+geom_col()+
+  scale_y_continuous(labels=percent)+
+  labs(title="Price vs Avg Cost - % Diff.", x="", y="% Diff: Price to ACB")
+
+grid.arrange(acbd, acbp, nrow=1)
+```
+
+```{r}
 acb_price_all %>%
   mutate(acb=currency(acb),
          price_close=currency(price_close),
          diff=percent(diff)) %>%
   kable %>%
-  kable_styling()
+  kable_styling(position='left', full_width = FALSE)
 ```
+
 
 ### TOTALS - Returns
 

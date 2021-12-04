@@ -290,31 +290,35 @@ subplot(ggplotly(pc_charts[[1]]), ggplotly(pc_charts[[2]]), nrows=1)
 
 ### Cardano
 
-#### Transactions & Adjusted Cost Base (Avg Cost)
-
-```{r, fig.height=3, fig.width=9}
-## cardano
+```{r}
+## get transaction, avg cost data for this currency
 currency <- 'ADA'
 ct <- acb(currency) ## function for ave cost data
 curr_trans <- ct ## rename to match existing code
-ct_chart <- curr_trans_chart() ## get charts
-ggplotly(ct_chart[[1]])
-subplot(ggplotly(ct_chart[[2]]), ggplotly(ct_chart[[3]]), nrows=1)
 
 ## SAVE (session) for currency
 ada_trans_save <- curr_trans
-```
 
-#### Prices, Costs, Profits
-
-```{r}
-### PRICE DATA
-symbol <- "ADA-CAD" ## used in getSymbols call and chart titles
-#price_col <- "ADA-CAD.Close" ## not used because col automatically identified in function - could be used later
+### PRICE & COST DATA
+symbol <- 'ADA-CAD'
 price_cost_data <- price(currency, symbol) 
 curr_price_cost <- price_cost_data[[1]]
 curr_profits <- price_cost_data[[3]]
+
+## print key info using price data and acb for symbol
+price_acb(curr_price_cost) %>% kable() %>% 
+  kable_styling(full_width = FALSE, position='left')
 ```
+
+#### Transactions & Adjusted Cost Base (Avg Cost)
+
+```{r, fig.height=3, fig.width=9}
+ct_chart <- curr_trans_chart() ## get charts
+ggplotly(ct_chart[[1]])
+subplot(ggplotly(ct_chart[[2]]), ggplotly(ct_chart[[3]]), nrows=1)
+```
+
+#### Prices, Costs, Profits
 
 ```{r, fig.height=4, fig.width=9}
 ### PRICE V COST charts
@@ -324,31 +328,35 @@ subplot(ggplotly(pc_charts[[1]]), ggplotly(pc_charts[[2]]), nrows=1)
 
 ### Polkadot
 
-#### Transactions & Adjusted Cost Base (Avg Cost)
-
-```{r, fig.height=3, fig.width=9}
-## polkadot
+```{r}
+## get transaction, avg cost data for this currency
 currency <- 'DOT'
 ct <- acb(currency) ## function for ave cost data
 curr_trans <- ct ## rename to match existing code
-ct_chart <- curr_trans_chart() ## get charts
-ggplotly(ct_chart[[1]])
-subplot(ggplotly(ct_chart[[2]]), ggplotly(ct_chart[[3]]), nrows=1)
 
 ## SAVE (session) for currency
 dot_trans_save <- curr_trans
 
-```
-
-#### Prices, Costs, Profits
-
-```{r}
-### PRICE DATA
-symbol <- "DOT1-CAD" ## used in getSymbols call and chart titles
+### PRICE & COST DATA
+symbol <- 'DOT1-CAD'
 price_cost_data <- price(currency, symbol) 
 curr_price_cost <- price_cost_data[[1]]
 curr_profits <- price_cost_data[[3]]
+
+## print key info using price data and acb for symbol
+price_acb(curr_price_cost) %>% kable() %>% 
+  kable_styling(full_width = FALSE, position='left')
 ```
+
+#### Transactions & Adjusted Cost Base (Avg Cost)
+
+```{r, fig.height=3, fig.width=9}
+ct_chart <- curr_trans_chart() ## get charts
+ggplotly(ct_chart[[1]])
+subplot(ggplotly(ct_chart[[2]]), ggplotly(ct_chart[[3]]), nrows=1)
+```
+
+#### Prices, Costs, Profits
 
 ```{r, fig.height=4, fig.width=9}
 ### PRICE V COST charts
@@ -358,32 +366,36 @@ subplot(ggplotly(pc_charts[[1]]), ggplotly(pc_charts[[2]]), nrows=1)
 
 ### Litecoin
 
-#### Transactions & Adjusted Cost Base (Avg Cost)
-
-```{r, fig.height=3, fig.width=9}
-## litecoin
+```{r}
+## get transaction, avg cost data for this currency
 currency <- 'LTC'
 ct <- acb(currency) ## function for ave cost data
 curr_trans <- ct ## rename to match existing code
-ct_chart <- curr_trans_chart() ## get charts
-ggplotly(ct_chart[[1]])
-subplot(ggplotly(ct_chart[[2]]), ggplotly(ct_chart[[3]]), nrows=1)
 
 ## SAVE (session) for currency
 ltc_trans_save <- curr_trans
 
-```
-
-#### Prices, Costs, Profits
-
-```{r}
-### PRICE DATA
-symbol <- "LTC-CAD" ## used in getSymbols call and chart titles
+### PRICE & COST DATA
+symbol <- 'LTC-CAD'
 price_cost_data <- price(currency, symbol) 
 curr_price_cost <- price_cost_data[[1]]
 curr_profits <- price_cost_data[[3]]
+
+## print key info using price data and acb for symbol
+price_acb(curr_price_cost) %>% kable() %>% 
+  kable_styling(full_width = FALSE, position='left')
 ```
 
+#### Transactions & Adjusted Cost Base (Avg Cost)
+
+```{r, fig.height=3, fig.width=9}
+## litecoin
+ct_chart <- curr_trans_chart() ## get charts
+ggplotly(ct_chart[[1]])
+subplot(ggplotly(ct_chart[[2]]), ggplotly(ct_chart[[3]]), nrows=1)
+```
+
+#### Prices, Costs, Profits
 
 ```{r, fig.height=4, fig.width=9}
 ### PRICE V COST charts

@@ -355,7 +355,7 @@ curr_trans <- ct ## rename to match existing code
 dot_trans_save <- curr_trans
 
 ### PRICE & COST DATA
-symbol <- 'DOT1-CAD'
+symbol <- 'DOT-CAD' ## previously used DOT1-CAD apparently not correct (not sure the diff)
 price_cost_data <- price(currency, symbol) 
 curr_price_cost <- price_cost_data[[1]]
 curr_profits <- price_cost_data[[3]]

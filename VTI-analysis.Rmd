@@ -1,0 +1,91 @@
+---
+title: "VTI Analysis"
+author: "`r Sys.getenv('USER')`"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    toc: true
+    code_fold: hide
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      message=FALSE,
+                      warning=FALSE,
+                      fig.height=3.5,
+                      fig.width=6)
+
+library(tidyverse)
+library(lubridate)
+library(here)
+library(PerformanceAnalytics)
+library(plotly)
+library(scales)
+library(gridExtra)
+library(DT)
+library(quantmod)
+library(dygraphs)
+
+theme_set(theme_light())
+
+## chart params
+bar_fill <- 'cornflowerblue'
+```
+
+## VTI Analysis
+
+Looking at trends, recent status, and expectations for Vanguard VTI ETF.
+
+### Get Data
+
+```{r cars}
+getSymbols(c("VTI","^GSPC"), auto.assign=TRUE) ## auto.assign=TRUE saves object; FALSE prints out data
+
+## viz
+dygraph(Cl(VTI))
+dygraph(Cl(GSPC))
+```
+
+VTI tracks S&P 500 very closely.
+
+### Returns
+
+#### Daily Returns
+
+```{r}
+VTI_return <- dailyReturn(VTI)
+dygraph(VTI_return)
+
+## summary stats
+summary(VTI_return)
+
+## distribution
+#hist(VTI_return)
+
+## convert to data frame for ggplot
+VTI_return_df <- data.frame(VTI_return)
+VTI_return_df$date <- row.names(VTI_return_df)
+
+VTI_return_df %>% ggplot(aes(x=daily.returns, label=mean(daily.returns)))+
+  geom_histogram(fill=bar_fill)+
+  geom_vline(xintercept=mean(VTI_return_df$daily.returns), linetype='dashed')+
+  geom_vline(xintercept=quantile(VTI_return_df$daily.returns, 0.25), linetype='dotted')+
+  geom_vline(xintercept=quantile(VTI_return_df$daily.returns, 0.75), linetype='dotted')+
+  annotate(geom = 'text', 
+           label=paste0("mean= ",prettyNum(mean(VTI_return_df$daily.returns)*100, digits=2),"%"), x=mean(VTI_return_df$daily.returns), y=1720, color='blue')+
+  annotate(geom='text', label="lower 25%", x=quantile(VTI_return_df$daily.returns, 0.25)-0.02, color='blue', y=1500)+
+  annotate(geom='text', label="upper 75%", x=quantile(VTI_return_df$daily.returns, 0.75)+0.02, color='blue', y=1500)+
+  scale_y_continuous(labels=comma, expand=expansion(mult=c(0,0.1)))+
+  scale_x_continuous(labels=percent)+
+  labs(title='Distribution of Daily Returns for VTI')
+```
+Daily returns very tightly centered around 0. 
+
+What is the effective annual rate based on mean daily rate?
+
+```{r}
+i <- mean(VTI_return_df$daily.returns)
+fv <- (1+i)^365-1
+paste(prettyNum(fv*100, digits=3),"%")
+```
+

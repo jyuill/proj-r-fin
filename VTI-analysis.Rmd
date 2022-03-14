@@ -25,7 +25,9 @@ library(gridExtra)
 library(DT)
 library(quantmod)
 library(dygraphs)
+library(forecast)
 
+options(scipen = 10)
 theme_set(theme_light())
 
 ## chart params
@@ -89,3 +91,112 @@ fv <- (1+i)^365-1
 paste(prettyNum(fv*100, digits=3),"%")
 ```
 
+### Decompose 
+
+```{r}
+vti_dc <- decompose(ts(VTI$VTI.Close, frequency=365), type='additive')
+plot(vti_dc)
+```
+
+Can see:
+
+* gradual upward trend, acceleratiing in recent periods.
+* seasonal pattern within the years: looks like starts high, drops off in early part of year and then climbs back up.
+
+### Trends
+
+```{r}
+vti_df <- data.frame(VTI)
+vti_df$date <- index(VTI)
+```
+
+```{r}
+vti_df %>% ggplot(aes(x=date, y=VTI.Close))+geom_line()+
+  geom_smooth(method='lm')
+```
+
+Linear model based on VTI.Close:
+
+(technically NOT supposed to use linear regression with time series, because violates the autocorrelation rule: residuals should not be correlated.)
+
+```{r}
+vti_lm <- lm(formula=VTI.Close~date, data=vti_df)
+summary(vti_lm)
+
+# doesn't work - just runs without stop
+#vti_tslm <- tslm(formula=VTI.Close~date, data=VTI)
+#summary(vti_tslm)
+# also doesn't work
+#tslm(VTI.Close ~ trend+season, data=VTI)
+
+```
+
+Remove Data 2020 and Beyond
+
+```{r}
+vti_df_2020 <- vti_df %>% filter(date<='2019-12-31')
+vti_df_2020 %>% ggplot(aes(x=date, y=VTI.Close))+geom_line()+
+  geom_smooth(method='lm')
+```
+```{r}
+vti_2020_lm <- lm(formula=VTI.Close~date, data=vti_df_2020)
+summary(vti_2020_lm)
+```
+
+```{r}
+#vti_2021 <- vti_df %>% filter(date>'2019-12-31')
+#pvti_2021 <- vti_2021 %>% select(date)
+#predict(vti_2020_lm, newdata=pvti_2021)
+#pvti_2021$clpred <- predict(vti_2020_lm, newdata=pvti_2021)
+#ggplot(pvti_2021, aes(x=date, y=clpred))+geom_line()
+
+## pre-2020 lm to make predictions of close for whole set
+pvti <- vti_df %>% select(date)
+pvti$clpred <- predict(vti_2020_lm, newdata=pvti)
+
+vti_dfp <- left_join(vti_df, pvti, by='date')
+```
+
+Expected trend beyond 2019 based on linear model for pre-2020 period:
+
+```{r}
+vti_dfp %>% ggplot(aes(x=date, y=VTI.Close))+geom_line()+
+  geom_line(aes(y=clpred))
+```
+
+One conclusion could be that VTI is currently over-priced and should be closer to 160 to be in line with historical trends.
+
+Lets extend the prediction out:
+
+* 6 months
+
+```{r}
+## pre-2020 lm to make predictions into the future
+pvti <- vti_df %>% select(date)
+pvti_6m <- data.frame(date=seq.Date(from=Sys.Date(), to=Sys.Date()+180, by='day')) 
+pvti <- bind_rows(pvti, pvti_6m)
+pvti$clpred6 <- predict(vti_2020_lm, newdata=pvti)
+
+vti_dfp2 <- full_join(vti_df, pvti, by='date')
+```
+
+```{r}
+vti_dfp2 %>% ggplot(aes(x=date, y=VTI.Close))+geom_line()+
+  geom_line(aes(y=clpred6))
+```
+
+
+```{r}
+## pre-2020 lm to make predictions into the future
+pvti <- vti_df %>% select(date)
+pvti_1y <- data.frame(date=seq.Date(from=Sys.Date(), to=Sys.Date()+365, by='day')) 
+pvti <- bind_rows(pvti, pvti_1y)
+pvti$clpred1y <- predict(vti_2020_lm, newdata=pvti)
+
+vti_dfp3 <- full_join(vti_df, pvti, by='date')
+```
+
+```{r}
+vti_dfp3 %>% ggplot(aes(x=date, y=VTI.Close))+geom_line()+
+  geom_line(aes(y=clpred1y))
+```

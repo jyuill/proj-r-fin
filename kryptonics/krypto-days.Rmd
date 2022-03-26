@@ -113,3 +113,9 @@ btc_rec_df %>% filter(date>rec) %>% ggplot(aes(x=day, y=BTC.CAD.Close, color=wee
   labs(title="BTC-CAD Closing Price by Day by Week",x="",y="BTC-CAD Close")
 ```
 
+Try some modeling
+
+```{r}
+summary(lm(BTC.CAD.Close~day, data=btc_rec_df))
+```
+

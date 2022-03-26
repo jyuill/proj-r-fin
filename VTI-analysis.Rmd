@@ -185,6 +185,7 @@ vti_dfp2 %>% ggplot(aes(x=date, y=VTI.Close))+geom_line()+
   geom_line(aes(y=clpred6))
 ```
 
+* 1 yr out
 
 ```{r}
 ## pre-2020 lm to make predictions into the future
@@ -200,3 +201,44 @@ vti_dfp3 <- full_join(vti_df, pvti, by='date')
 vti_dfp3 %>% ggplot(aes(x=date, y=VTI.Close))+geom_line()+
   geom_line(aes(y=clpred1y))
 ```
+
+* 5 years out
+
+```{r}
+## pre-2020 lm to make predictions into the future
+pvti <- vti_df %>% select(date)
+pvti_5y <- data.frame(date=seq.Date(from=Sys.Date(), to=Sys.Date()+(365*5), by='day')) 
+pvti <- bind_rows(pvti, pvti_5y)
+pvti$clpred5y <- predict(vti_2020_lm, newdata=pvti)
+
+vti_dfp5y <- full_join(vti_df, pvti, by='date')
+```
+
+```{r}
+vti_dfp5y %>% ggplot(aes(x=date, y=VTI.Close))+geom_line()+
+  geom_line(aes(y=clpred5y))
+```
+
+Suggests a conservative scenario would see us around current levels in 5 yrs or so, if reverted back to expectations based on historical trends.
+
+## Get rolling year returns
+
+```{r}
+## roll up to months
+end_mth <- endpoints(VTI, on="months")
+VTIm <- VTI[end_mth,]
+
+VTIm$yr_rtn <- (VTI$VTI.Close/lag.xts(VTIm$VTI.Close, k=12))-1
+#VTImr <- monthlyReturn(VTI$VTI.Close)
+
+```
+
+```{r}
+#dygraph(VTIm$VTI.Close)
+dygraph(VTIm$yr_rtn)
+```
+
+* check for longest periods of negative vs longest periods of positive
+* check ave pos vs ave neg, distribution
+* what % of the time do you lose money on YoY basis?
+* note that as of most recent data, still above water for yearly return - but getting close to underwater

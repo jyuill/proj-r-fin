@@ -116,6 +116,15 @@ btc_rec_df %>% filter(date>rec) %>% ggplot(aes(x=day, y=BTC.CAD.Close, color=wee
 Try some modeling
 
 ```{r}
+## no predictive value for day of week - for any price points
+## Close
 summary(lm(BTC.CAD.Close~day, data=btc_rec_df))
+## Open
+summary(lm(BTC.CAD.Open~day, data=btc_rec_df))
+## Low
+summary(lm(BTC.CAD.Low~day, data=btc_rec_df))
+## High
+summary(lm(BTC.CAD.High~day, data=btc_rec_df))
+
 ```
 

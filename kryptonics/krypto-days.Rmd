@@ -1,5 +1,5 @@
 ---
-title: "Cryptocurrency Price Patterns by Day"
+title: "Bitcoin Price Patterns by Day"
 author: "`r Sys.getenv('USER')`"
 date: "`r Sys.Date()`"
 output: 
@@ -23,6 +23,11 @@ library(scales)
 library(gridExtra)
 library(DT)
 library(quantmod)
+library(dygraphs)
+library(glue)
+
+## chart variables
+fill_color <- 'steelblue3'
 
 ```
 
@@ -34,31 +39,46 @@ Exploring price patterns by day of week for several major cryptocurrencies.
 
 Get data:
 
-```{r cars}
-symb <- c('BTC-CAD','ETH-CAD')
-getSymbols(Symbols=symb, auto.assign = TRUE)
+* Start with BTC and ETH
+* Using Cdn$ since...I make and spend my money in Canada.
 
+```{r cars}
+symb <- c('BTC-CAD')
+getSymbols(Symbols=symb, auto.assign = TRUE)
 ```
 
 ```{r}
-summary(`BTC-CAD`
-        )
+summary(`BTC-CAD`[,1:4])
 ```
 
+### Focus on recent data
 
-### Focus on BTC
+* Get last 2 years
+* Check overall pattern
 
-* Get last 2 yrs
+```{r}
+rec <- paste0(Sys.Date()-(365*2),"/")
+btc_rec <- `BTC-CAD`[rec]
+dygraph(btc_rec[,"BTC-CAD.Close"])
+```
+
+Let's focus on performance since Jan 1, 2021 as more 'stable' period relative to the run-up pre-2021.
+
+```{r}
+rec <- paste0("2021-01-01/")
+btc_rec <- `BTC-CAD`[rec]
+dygraph(btc_rec[,"BTC-CAD.Close"])
+```
+
 * Identify days of week
 
 ```{r }
-rec <- '2020-01-01'
-btc_rec <- `BTC-CAD`['2020/']
-## add days
-btc_rec$day <- weekdays(index(btc_rec), abbreviate = TRUE)
 ## easiest to convert to data frame
 btc_rec_df <- data.frame(btc_rec)
 btc_rec_df$date <- index(btc_rec)
+## add days
+btc_rec_df$day <- weekdays(index(btc_rec), abbreviate = TRUE)
+## add weeks
 btc_rec_df$week_of <- floor_date(btc_rec_df$date, unit='weeks')
 btc_rec_df$BTC.CAD.Open <- as.numeric(btc_rec_df$BTC.CAD.Open)
 btc_rec_df$BTC.CAD.Low <- as.numeric(btc_rec_df$BTC.CAD.Low)
@@ -67,64 +87,140 @@ btc_rec_df$BTC.CAD.Close <- as.numeric(btc_rec_df$BTC.CAD.Close)
 str(btc_rec_df)
 ```
 
+Focusing on closing price on the assumption that if there is a pattern it will show up in closing price.
+
 ```{r}
 btc_rec_df$day <- fct_relevel(btc_rec_df$day, levels=c("Sun","Mon","Tue","Wed","Thu","Fri","Sat"))
-btc_rec_df %>% ggplot(aes(x=day, y=BTC.CAD.Close))+geom_boxplot()+
+btc_rec_df %>% ggplot(aes(x=day, y=BTC.CAD.Close))+geom_boxplot(fill=fill_color)+
   scale_y_continuous(labels=dollar_format())+
   labs("Distribution of BTC-CAD Closing Price by Day of Week", y='BTC-CAD Close', x="")
 ```
 
-No strong pattern - Monday has lowest median, Wednesday has highest, but LOTS of spread in the data, with no reliable pattern.
+No strong, obvious pattern over the period. Slight pattern of lower mid-week, rising to weekends. 
+
+This data is over a period where there is a lot of variance in the price that may blur the daily patterns. Could still be that there is a consistent pattern *within* weeks.
+
+Let's look at week-by-week trends by day: 
 
 ```{r}
-btc_rec_df %>% ggplot(aes(x=day, y=BTC.CAD.Close, color=week_of, group=week_of))+geom_line()+
+week_plot <- btc_rec_df %>% ggplot(aes(x=day, y=BTC.CAD.Close, color=as.factor(week_of), group=week_of))+geom_line()+
   scale_y_continuous(labels=dollar_format())+
-  labs(title="BTC-CAD Closing Price by Day by Week",x="",y="BTC-CAD Close")
+  labs(title="BTC-CAD Closing Price by Day by Week",x="",y="BTC-CAD Close")+
+  theme(legend.position = 'none')
+ggplotly(week_plot)
+```
+
+Certainly some weeks with upward trend through the week (most obviously near end of 2021), but not exactly a consistent pattern to rely on across this date range. 
+
+Look at some individual day of week comparisons
+
+* Start with Wed - Sat
+
+```{r}
+btc_rec_d_df <- btc_rec_df %>% filter(day=='Wed' | day=='Sat')
+dd_plot <- btc_rec_d_df %>% ggplot(aes(x=day, y=BTC.CAD.Close, color=as.factor(week_of), group=week_of))+geom_line()+
+  scale_y_continuous(labels=dollar_format())+
+  labs(title="BTC-CAD Closing Price by Day by Week",x="",y="BTC-CAD Close")+
+  theme(legend.position = 'none')
+ggplotly(dd_plot)
+```
+
+Pretty hard to pick out any obvious/consistent pattern. Let's take a closer look:
+
+```{r}
+## remove first row, since starts on Sat
+btc_rec_d_df <- btc_rec_d_df[-1,]
+## remove last row, since also Sat
+btc_rec_d_df <- btc_rec_d_df[-nrow(btc_rec_d_df),]
+## calc % chg Sun-Sat
+btc_rec_d_df <- btc_rec_d_df %>% mutate(
+  wk_chg=BTC.CAD.Close/lag(BTC.CAD.Close)-1
+)
+## calculate some stats and make them pretty for printing
+mwkchg_calc <- median(btc_rec_d_df$wk_chg, na.rm=TRUE)
+mwkchg <- glue(prettyNum(mwkchg_calc*100, digits=2),"%")
+awkchg_calc <- mean(btc_rec_d_df$wk_chg, na.rm=TRUE)
+awkchg <- glue(prettyNum(awkchg_calc*100, digits=2),"%")
+wkchg_pctl <- quantile(btc_rec_d_df$wk_chg, 0.5, na.rm=TRUE)
+## set color for mean based on above/below zero
+acolor <- ifelse(awkchg_calc>0,'green','red')
+apos <- ifelse(awkchg_calc>0,0.03,-0.03)
+mpos <- ifelse(mwkchg_calc>0,0.04,-0.04)
+## histogram
+btc_rec_d_df %>% ggplot(aes(x=wk_chg))+geom_histogram(fill=fill_color)+
+  geom_vline(xintercept=mwkchg_calc, color='black', linetype='dashed', size=1)+
+  geom_vline(xintercept=awkchg_calc, color=acolor, linetype='dashed', size=1)+
+  annotate(geom='text', label=paste0("median: ",mwkchg), x=mwkchg_calc+mpos, y=16.4, color='black')+
+  annotate(geom='text', label=paste0("ave: ",awkchg), x=awkchg_calc+apos, y=17.1, color=acolor)+
+  labs(title="Distribution of Weekly Returns from Wed to Sat")
+  
+```
+
+Basically a wash:
+
+* 50% chance of being either above or below 0.12% return on the week, although farther outliers on the negative side.
+* Ave. return on the week essentially 0 (-0.012%).
+
+```{r}
+btc_rec_d_df <- btc_rec_df %>% filter(day=='Sun' | day=='Fri')
+dd_plot <- btc_rec_d_df %>% ggplot(aes(x=day, y=BTC.CAD.Close, color=as.factor(week_of), group=week_of))+geom_line()+
+  scale_y_continuous(labels=dollar_format())+
+  labs(title="BTC-CAD Closing Price by Day by Week",x="",y="BTC-CAD Close")+
+  theme(legend.position = 'none')
+ggplotly(dd_plot)
+```
+
+## Check other days
+
+```{r}
+## create loop to process day pairs and produce histogram as shown for Sun-Sat
+## inputs: 
+## set up day pairs to test
+daypairs <- list(c('Sun','Sat'),c('Sun','Fri'),c('Sun','Thu'),c('Sun','Wed'),c('Sun','Tue'),c('Sun','Mon'),
+                 c('Mon','Sat'),c('Mon','Fri'),c('Mon','Thu'),c('Mon','Wed'),c('Mon','Tue'),
+                 c('Tue','Sat'),c('Tue','Fri'),c('Tue','Thu'),c('Tue','Wed'),
+                 c('Wed','Sat'),c('Wed','Fri'),c('Wed','Thu'),
+                 c('Thu','Sat'),c('Thu','Fri'),
+                 c('Fri','Sat'))
+## loop through day pairs
+for(i in 1:length(daypairs)){
+  btc_rec_d_df <- btc_rec_df %>% filter(day==daypairs[[i]][1] | day==daypairs[[i]][[2]])
+  ## calc % chg between days
+  btc_rec_d_df <- btc_rec_d_df %>% mutate(
+    wk_chg=BTC.CAD.Close/lag(BTC.CAD.Close)-1
+  )
+  ## calculate some stats and make them pretty for printing
+  mwkchg <- glue(prettyNum(median(btc_rec_d_df$wk_chg, na.rm=TRUE)*100, digits=2),"%")
+  awkchg <- glue(prettyNum(mean(btc_rec_d_df$wk_chg, na.rm=TRUE)*100, digits=2),"%")
+  ## histogram
+  dd_plot <- btc_rec_d_df %>% ggplot(aes(x=wk_chg))+geom_histogram(fill=fill_color)+
+    geom_vline(xintercept=median(btc_rec_d_df$wk_chg, na.rm=TRUE), color='black', linetype='dashed', size=1)+
+    geom_vline(xintercept=mean(btc_rec_d_df$wk_chg, na.rm=TRUE), color='green', linetype='dashed', size=1)+
+    annotate(geom='text', label=paste0("median: ",mwkchg), x=median(btc_rec_d_df$wk_chg, na.rm=TRUE)+0.04, y=16.4, color='black')+
+    annotate(geom='text', label=paste0("ave: ",awkchg), x=mean(btc_rec_d_df$wk_chg, na.rm=TRUE)-0.038, y=17.1, color='green')+
+    labs(title=paste0("Distribution of Weekly Returns: ", daypairs[[i]][1], " to ",daypairs[[i]][2]))
+  print(dd_plot)
+}
 
 ```
 
-No consistent pattern in days of week across this date range.
 
-Maybe focus on 2021 onward, when price is in higher bracket.
 
-```{r}
-rec <- '2021-01-01' 
-btc_rec_df %>% filter(date>rec) %>% ggplot(aes(x=day, y=BTC.CAD.Close))+geom_boxplot()+
-  scale_y_continuous(labels=dollar_format())+
-  labs("Distribution of BTC-CAD Closing Price by Day of Week", y='BTC-CAD Close', x="")
-```
 
-```{r}
-btc_rec_df %>% filter(date>rec) %>% ggplot(aes(x=day, y=BTC.CAD.Close, color=week_of, group=week_of))+geom_line()+
-  scale_y_continuous(labels=dollar_format())+
-  labs(title="BTC-CAD Closing Price by Day by Week",x="",y="BTC-CAD Close")
-```
+## Open vs Close
+
+Another comparison is checking if some days tend to close higher than open. This could lead to a strategy of buying early and selling late on days that tend to have upward trend.
+
+
+## Check Linear Model
+
+* Check for linear relationship between closing price day of week. (does this make sense, though? for same reason as noted above with boxplot by day, where price fluctuates through the period and more relevant comparison is change during week) 
 
 ```{r}
-rec <- '2021-09-01'
-btc_rec_df %>% filter(date>rec) %>% ggplot(aes(x=day, y=BTC.CAD.Close))+geom_boxplot()+
-  scale_y_continuous(labels=dollar_format())+
-  labs("Distribution of BTC-CAD Closing Price by Day of Week", y='BTC-CAD Close', x="")
-```
-
-```{r}
-btc_rec_df %>% filter(date>rec) %>% ggplot(aes(x=day, y=BTC.CAD.Close, color=week_of, group=week_of))+geom_line()+
-  scale_y_continuous(labels=dollar_format())+
-  labs(title="BTC-CAD Closing Price by Day by Week",x="",y="BTC-CAD Close")
-```
-
-Try some modeling
-
-```{r}
-## no predictive value for day of week - for any price points
-## Close
+## use Close as representative
 summary(lm(BTC.CAD.Close~day, data=btc_rec_df))
-## Open
-summary(lm(BTC.CAD.Open~day, data=btc_rec_df))
-## Low
-summary(lm(BTC.CAD.Low~day, data=btc_rec_df))
-## High
-summary(lm(BTC.CAD.High~day, data=btc_rec_df))
-
 ```
 
+* Sunday is the 'control' day, hence not shown.
+* All variables are negative, indicating *less* correlation to closing price than Sunday. Could suggest Sunday is the best day to **sell**.
+* However, no variables (days) show statistical significance relative to closing price, and R-squared is essentially 0, indicating **no relationship** between day of week and closing price.

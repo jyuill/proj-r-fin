@@ -49,10 +49,11 @@ Keep track of status of krypto portfolio over time, based on transactions combin
 ## Method {.tabset}
 
 1. Log into crypto account.
-2. Download activity report.
-3. Go to spreadsheet in Marengo - check most recent transaction date there.
-4. Copy/paste new transactions from activity report.
-5. Copy down formulas in spreadsheet.
+2. John > Statements & Reports > Get latest annual or monthly stmt.
+3. Retrieve stmt from email. (new format as of 2022, but cols still align)
+4. Go to spreadsheet in Marengo - check most recent transaction date there.
+5. Copy/paste new transactions from activity report.
+6. Copy down formulas in spreadsheet.
 
 ```{r}
 gcred <- 'original-return-107905-8542c2ab0ad1.json'

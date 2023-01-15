@@ -35,12 +35,16 @@ Getting daily price data for any stock is as easy as using quantmod package and 
 
 * fetches data as xts time series object
 * note src and updated in str output 
+* auto.assign:
+    - TRUE: creates xts object in environment with name of symbol
+    - FALSE: prints results OR can be used to save results to object of any chosen name
 
 ```{r}
-getSymbols("CSIQ", auto.assign=TRUE) ## auto.assign=TRUE saves object; FALSE prints out data
+getSymbols("CSIQ", auto.assign=TRUE) ## auto.assign=TRUE saves object
+csiq_prices <- getSymbols("MSFT", auto.assign=FALSE) ##auto.assign=FALSE to save to specified object
+## xts object
 str(CSIQ)
 ```
-
 Entire history of the daily stock price (at least going back to 2007) is now available in an xts object named after the stock symbol. 
 
 * default source is yahoo finance (src='yahoo')
@@ -180,37 +184,129 @@ for(stocks in stockrenew3){
 head(renewables3c)
 ```
 
+### Data frame conversion
+
+```{r}
+## convert xts to data frame - will work with dygraphs
+csiq_df <- data.frame(csiq_prices)
+## row names will be dates - move to date col
+csiq_df$date <- ymd(rownames(csiq_df))
+## [opt] set rownames to number as in typical data frame (won't work with dygraphs)
+rownames(csiq_df) <- 1:nrow(csiq_df)
+## [opt] move date col to first left
+csiq_df <- csiq_df %>% select(date,1:(ncol(csiq_df)-1))
+```
+
 
 ## Visualize 
 
-Dygraphs pkg enables interactive charts designed to work with quantmod right out of the boox.
+quantmod has its own 'chartSeries' / 'chart_Series', Dygraphs pkg enables interactive charts designed to work with quantmod right out of the box.
 
-### Basic line chart (non-interactive)
+Several options:
 
-* chart_Series 
+* **chartSeries**: basic charting from Quantmod pkg
+    - works with xts
+    - understands .Open, .High, .Low, .Close
+    - basic version has vol
+    - easy to add technical layers
+* **chart_Series**: experimental version of basic charting from Quantmod pkg, seems like similar features, different default formatting
+* **dygraphs**: more interactivity, works with quantmod, **xts**
+    - works with data frame as long as rownames are dates 
+    - doesn't have the technical analysis features (afaik); limited tweaking of format - mostly automatic
+* **ggplot**: if data converted from xts to data frame (example above) 
+
+### chartSeries: basic line charts (non-interactive)
+
+#### Candlestick
+
+* chartSeries, chart_Series: single stock, OHLC candlestick by default
 
 ```{r CHART_SERIES_ONE}
 ## basic chart_Series from quantmod
-chart_Series(OHLC(CSIQ))
-
+## - two versions chartSeries (orig) and chart_Series (new experimental)
+chartSeries(CSIQ_90d, name="CSIQ - OHLC & vol")
+chart_Series(CSIQ_90d, name="CSIQ - OHLC") 
+## same:
+#chart_Series(OHLC(CSIQ_90d))
 ```
 
-* with volume
+* Open is either bottom of green bar OR top of red bar
+* High is highest point (either line or top of bar)
+* Low is lowest point (either line or bottom of bar)
+* Close is either top of green bar OR bottom of red bar
+
+#### Technical features
+
+* SMA: simple moving average
+* MACD: moving average convergence divergence signals
+* BBands: Bollinger bands
+* other features are available in quantmod (not shown)
 
 ```{r}
-barChart(CSIQ)
+chartSeries(CSIQ_90d, name="CSIQ - OHLC & Technical Indicators", TA=c(addVo(),addBBands(), addMACD()))
 ```
 
-### Dygraph line (interactive)
+* add more technical with chart_Series - layer in one chart at a time
 
-* dygraph
+```{r}
+chart_Series(OHLC(CSIQ), subset='2019-12/2020-07')
+add_SMA(n=30, col='blue')
+add_SMA(n=7, col='green')
+add_MACD() 
+add_BBands()
+addMomentum()
+```
+
+* same idea all-in-one (leaving out momentum - doesn't work with chart_Series)
+
+```{r}
+## semi-colon separated TA functions
+chart_Series(OHLC(CSIQ), subset='2019-12/2020-07', main="Full Tech Indicators",
+             TA="add_SMA(n=30, col='blue');
+             add_SMA(n=7, col='green');
+             add_MACD();
+             add_BBands()")
+```
+
+
+#### Specific cols
+
+* can isolate specific columns
+
+```{r}
+## two variations
+chartSeries(Cl(CSIQ_90d), name="CSIQ - Closing Prices")
+## new charting
+chart_Series(Cl(CSIQ_90d), name="CSIQ - Closing Prices")
+```
+
+#### Multiple stocks
+
+* multiple stocks, one chart (but how to identify each stock?)
+
+```{r}
+chart_Series(Cl(renewables3c))
+chartSeries(renewables, theme=chartTheme("white"))
+```
+
+### Dygraph line/candle (interactive)
+
+* dygraph is designed for time series data - xts OR data frame, with first col as date
+* works with quantmod but doesn't incorporate separate vol or technical features
+* for OHLC need dyCandlestick additional command
+* (Info on inputs for dygraphs)[https://r-graph-gallery.com/316-possible-inputs-for-the-dygraphs-library.html]
+
+#### Lines / Candlestick
 
 ```{r DYGRAPH_ONE}
 ## use dygraphs pkg
-dygraph(OHLC(CSIQ))
+dygraph(OHLC(CSIQ_90d))
+cndl <- dygraph(OHLC(CSIQ_90d))
+dyCandlestick(cndl)
 
 ```
 
+#### Single col
 
 * closing price only
 
@@ -220,28 +316,49 @@ dygraph(Cl(CSIQ))
 
 ```
 
+#### Annotations!
+
 Easily add annotations
 
 ```{r}
-graph <- dygraph(OHLC(CSIQ), main="Cdn Solar")
-graph <- dyEvent(graph, "2020-02-21","Start of covid crash",
-                 labelLoc="top")
-graph
+## shorter date range for readability / relevance
+CSIQ_covid <- CSIQ_2020['/2021-05-30']
+## find date of peak close for annotation
+#max(CSIQ_covid$CSIQ.Close)
+peak_date <- index(CSIQ_covid[Cl(CSIQ_covid)==max(Cl(CSIQ_covid))])
 
+## multi-step process
+## setup chart parameters
+#graph <- dygraph(OHLC(CSIQ_covid), main="Cdn Solar")
+## compile/add event annotations
+#graph <- dyEvent(graph, c("2020-02-21",as.character(peak_date)),
+#                          c("Start of covid crash","Post-covid peak"),
+#                 labelLoc="top")
+## print candlestick
+#dyCandlestick(graph)
+
+## pipe together chart info and event annotations individually for more control
+dygraph(OHLC(CSIQ_covid), main="Cdn Solar with annotation") %>%
+  dyEvent("2020-02-21","Start of covid crash", labelLoc="top") %>%
+  dyEvent(as.character(peak_date),"Post-covid peak", labelLoc="bottom") %>%
+  dyCandlestick()
 ```
 
-Show only adjusted close, filtered for 2020
+Show only adjusted close, filtered for 2020 - early 2021
 
 ```{r}
-CSIQ_2020 <- CSIQ['2020-01-01/']
+CSIQ_2020 <- CSIQ['2020-01-01/2021-01-31']
 graph <- dygraph(Ad(CSIQ_2020), main="Cdn Solar")
 graph <- dyEvent(graph, "2020-02-21","Start of covid crash",
                  labelLoc="top")
+graph <- dyEvent(graph, "2021-01-21","Peak after covid crash",
+                 labelLoc="bottom")
 graph
-
 ```
 
-## Adjusted price
+* just under 1 yr from crash to peak
+
+## Adjusted prices
 
 Adjusted price is supposed to adjust for stock splits, while other prices are actual on the trading day.
 
@@ -257,48 +374,65 @@ tail(TSLA_presplit)
 ```
 
 ```{r}
-#chart_Series(OHLC(TSLA))
-dygraph(OHLC(TSLA))
+#dygraph(OHLC(TSLA))
+## set width and height in pixels
+dygraph(Ad(TSLA), width=400, height=300)
+dygraph(TSLA[,c(4,6)], width=400, height=300)
 ```
 
-## Candlestick
+## Get RETURNS
 
-With selected period - in this case, based on recent (suitable up to ~30 days at a time).
-
-```{r}
-CSIQ_recent <- tail(CSIQ, n=30)
-graph <- dygraph(OHLC(CSIQ_recent))
-dyCandlestick(graph)
-
-```
-
-* Open is either bottom of green bar OR top of red bar
-* High is highest point (either line or top of bar)
-* Low is lowest point (either line or bottom of bar)
-* Close is either top of green bar OR bottom of red bar
-
-## Add Technical features
-
-* SMA: simple moving average
-* MACD: moving average convergence divergence signals
-* BBands: Bollinger bands
-* other features are available in quantmod (not shown)
-
-```{r}
-chart_Series(OHLC(CSIQ), subset='2019-12/2020-07')
-add_SMA(n=30, col='blue')
-add_SMA(n=7, col='green')
-add_MACD() 
-add_BBands()
-addMomentum()
-```
-
-## Get Returns
+* Prices are great, but **what REALLY counts is RETURNS!**
+* Quantmod has functions for different returns by periodicity (daily, weekly, monthly, quarterly, annual)
+* **periodReturn** is the underlying function
+* can use **allReturns** to calculate all return periods at once, depending on date range.
+* **PerformanceAnalytics** pkg is the definitive R pkg for returns and portfolio optimization - so this is quick coverage and will dive more into PerformanceAnalytics in another file.
 
 ```{r}
 CSIQ_90d_return <- dailyReturn(CSIQ_90d)
-dygraph(CSIQ_90d_return)
+head(CSIQ_90d_return)
+dygraph(CSIQ_90d_return, width=600, height=250)
 ```
+
+#### All Returns data
+
+* one command to calculate returns for all periodicities - assuming date range is wide enough.
+
+```{r}
+CSIQ_returns <- allReturns(CSIQ)
+head(CSIQ_returns)
+```
+
+#### Annual returns
+
+* zoom in on annual returns.
+
+```{r}
+## subset for annual return data and chart
+CSIQ_returns[!is.na(CSIQ_returns$yearly),5] %>%
+dygraph(main="CSIQ Annual Returns")
+head(CSIQ_returns[!is.na(CSIQ_returns$yearly),5])
+```
+
+* would be nicer to have bar chart
+* how about quick **ggplot after conversion to data frame**?
+
+```{r, fig.height=3, fig.width=6}
+csiq_ret_df <- data.frame(CSIQ_returns[!is.na(CSIQ_returns$yearly),5])
+csiq_ret_df$date <- ymd(rownames(csiq_ret_df))
+ggplot(csiq_ret_df, aes(x=as.factor(date), y=yearly))+geom_col()+
+  scale_y_continuous(labels=percent_format())+
+  labs(title="Yearly Returns", x="", y="annual % returns")+
+  theme(axis.text.x = element_text(angle=45, hjust=1))
+## or simplified x-axis
+csiq_ret_df$year <- year(csiq_ret_df$date)
+csiq_ret_df %>% ggplot(
+  aes(x=year, y=yearly))+geom_col()+
+  scale_y_continuous(labels=percent_format())+
+  labs(title="Yearly Returns", x="", y="annual % returns")
+
+```
+
 
 ### Stats on returns
 
@@ -397,8 +531,6 @@ getSymbols(Symbols=c("FEDFUNDS","DFF"), src="FRED" )
 
 head(DFF) ## daily data 
 head(FEDFUNDS) ## mthly data
-
-
 ```
 
 ```{r}
@@ -414,7 +546,6 @@ merged_funds <- merge(FEDFUNDS, DFF_monthly)
 head(merged_funds)
 ```
 
-
 ## Quandl for Importing
 
 Claims 'the world's most powerful data lives on [Quandl](https://www.quandl.com/). See also: [Quandl API documentation](https://docs.quandl.com/docs/getting-started).
@@ -425,8 +556,12 @@ Claims 'the world's most powerful data lives on [Quandl](https://www.quandl.com/
 * Does not appear that you can access stock prices without account/payment :(
 
 ```{r}
-us_gdp <- Quandl(code='FRED/GDP')
+## as of Jan 14, 2023 getting error msg that I need to get API key
+#us_gdp <- Quandl(code='FRED/GDP')
 
-ggplot(us_gdp, aes(x=Date, y=Value))+geom_line()
+#ggplot(us_gdp, aes(x=Date, y=Value))+geom_line()
 ```
 
+## PerformanceAnalytics [next]
+
+PerformanceAnalytics pkg is considered best for analysis of returns and portfolio decisions. Will dive into it in separate file.

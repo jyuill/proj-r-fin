@@ -1,0 +1,69 @@
+---
+title: "Stock Analysis with PerformanceAnalytics"
+author: "`r Sys.getenv('USER')`"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    toc: true
+    code_fold: hide
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      message=FALSE,
+                      warning=FALSE,
+                      fig.height=3.5,
+                      fig.width=6)
+
+library(tidyverse)
+library(lubridate)
+library(here)
+library(PerformanceAnalytics)
+library(plotly)
+library(scales)
+library(gridExtra)
+library(DT)
+library(quantmod)
+library(dygraphs)
+
+```
+
+## Intro
+
+Examples of return and portfolio analysis that can be done with the PerformanceAnalytics package.
+
+## Get Data
+
+Select 3 ETFs to compare for the purpose of selection.
+
+```{r}
+etf <- c("^GSPC","VTI","VIG","ZLB.TO")
+## set empty object
+etf_all <- NULL
+## loop through each stock, binding cols as you go
+for(stocks in etf){
+  etf_all <- cbind(etf_all,
+                      getSymbols(Symbols=stocks, 
+                                 from='2018-01-01', periodicity='daily', 
+                                 auto.assign = FALSE))
+}
+head(etf_all)
+
+```
+
+### Initial viz
+
+```{r}
+dygraph(Cl(etf_all))
+```
+
+* with S&P 500 removed
+
+```{r}
+etf_nosp <- etf_all[,7:ncol(etf_all)]
+dygraph(Cl(etf_nosp))
+```
+
+## Get Returns
+
+

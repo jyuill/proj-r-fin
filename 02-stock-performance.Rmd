@@ -18,12 +18,14 @@ knitr::opts_chunk$set(echo = TRUE,
 library(tidyverse)
 library(lubridate)
 library(here)
-library(PerformanceAnalytics)
 library(plotly)
 library(scales)
 library(gridExtra)
 library(DT)
+
+library(PerformanceAnalytics)
 library(quantmod)
+library(xts)
 library(dygraphs)
 
 ```
@@ -32,16 +34,19 @@ library(dygraphs)
 
 Examples of return and portfolio analysis that can be done with the PerformanceAnalytics package.
 
+* (Performance Analytics pkg manual)[https://cran.r-project.org/web/packages/PerformanceAnalytics/PerformanceAnalytics.pdf]
+* (Blog post: Performance Analytics: An Indispensable Quant Tool for Any Investor)[https://franklinparker.com/2019/02/16/performanceanalytics-an-indespensible-quant-tool-for-any-investor/]
+
 ## Get Data
 
 Select 3 ETFs to compare for the purpose of selection.
 
 ```{r}
-etf <- c("^GSPC","VTI","VIG","ZLB.TO")
+etf_symbols <- c("^GSPC","VTI","VIG","ZLB.TO")
 ## set empty object
 etf_all <- NULL
 ## loop through each stock, binding cols as you go
-for(stocks in etf){
+for(stocks in etf_symbols){
   etf_all <- cbind(etf_all,
                       getSymbols(Symbols=stocks, 
                                  from='2018-01-01', periodicity='daily', 
@@ -66,4 +71,102 @@ dygraph(Cl(etf_nosp))
 
 ## Get Returns
 
+Performance Analytics focuses on returns analysis. From the manual:
+
+*"Performance measurement starts with returns... Most of the recent work
+in performance analysis is focused on returns rather than prices and sometimes called
+"returns-based analysis" or RBA. This “price per unit of investment” standardization is important
+for two reasons - first, it helps the decision maker to compare opportunities, and second, it has some
+useful statistical qualities."*
+
+```{r}
+## monthly returns
+## 1. convert time series to monthly OHLC
+## - doesn't convert the whole set at once - need to do each symbol individually
+## - need to use symbols for col names, otherwise will mangle them, even though already there
+etf_all_mth <- NULL
+etf_all_mth_ret <- NULL
+for(i in 1:length(etf_symbols)){
+  cstart <- i*6-5
+  cend <- cstart+5
+  etf_mth <- to.monthly(etf_all[,cstart:cend], name=etf_symbols[i])
+  etf_all_mth <- cbind(etf_all_mth, etf_mth)
+  #etf_mth_ret <- Return.calculate(etf_mth)
+  #etf_all_mth_ret <- cbind(etf_all_mth_ret, etf_mth_ret)
+}
+## 2. calc returns on monthly prices
+## - gets returns for all cols
+etf_mth_ret <- Return.calculate(etf_all_mth)
+```
+
+## Correlations
+
+```{r}
+## get Close cols
+cols <- which(str_detect(colnames(etf_mth_ret), "Close"))
+etf_mth_ret_cl <- etf_mth_ret[,cols]
+## convert to data frame 
+etf_mth_ret_df <- data.frame(etf_mth_ret_cl)
+## correlation chart
+chart.Correlation(etf_mth_ret_df)
+```
+
+From (Performance Analytics: An Indispensable Quant Tool for Any Investor)[https://franklinparker.com/2019/02/16/performanceanalytics-an-indespensible-quant-tool-for-any-investor/]
+
+"The diagonal gives you the return distribution of each ETF. I like to see how the returns are distributed—are the concentrated in the center? are there lots of outliers? are they heavily skewed? is something just weird? Indeed, this plot recently helped me immediately throw out a position under consideration because the distribution was barbelled (but more heavy left-tailed)."
+
+## Upside/Downside Capture
+
+Not actually sure how to interpret.
+
+```{r}
+chart.CaptureRatios(Ra=etf_mth_ret_cl[,2:4], Rb=etf_mth_ret_cl[,"X.GSPC.Close"], colorset="dodgerblue4",
+    main="Capture Ratio")
+```
+
+## Distribution of Returns
+
+```{r}
+sel <- 2
+chart.Histogram(etf_mth_ret_df[,sel],
+                methods=c("add.normal","add.risk"),
+                colorset = c('steelblue','','navyblue'),
+                main=etf_symbols[sel])
+```
+
+```{r}
+sel <- 3
+chart.Histogram(etf_mth_ret_df[,sel],
+                methods=c("add.normal","add.risk"),
+                colorset = c('steelblue','','navyblue'),
+                main=etf_symbols[sel])
+```
+
+```{r}
+sel <- 4
+chart.Histogram(etf_mth_ret_df[,sel],
+                methods=c("add.normal","add.risk"),
+                colorset = c('steelblue','','navyblue'),
+                main=etf_symbols[sel])
+```
+
+```{r}
+sel <- 1
+chart.Histogram(etf_mth_ret_df[,sel],
+                methods=c("add.normal","add.risk"),
+                colorset = c('steelblue','','navyblue'),
+                main=etf_symbols[sel])
+```
+
+## Drawdown comparisons
+
+Shows how resilient investment is during negative return situations.
+
+```{r}
+#sel <- 1
+#chart.Drawdown(etf_mth_ret_cl[,sel], geometric=TRUE, colorset="firebrick4", main=etf_symbols[sel])
+## plot.engine options: ggplot2, plotly, dygraph, googlevis, default
+chart.Drawdown(etf_mth_ret_cl, geometric=TRUE, legend.loc='bottomleft', plot.engine="dygraph")
+
+```
 

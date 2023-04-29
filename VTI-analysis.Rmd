@@ -81,7 +81,8 @@ VTI_return_df %>% ggplot(aes(x=daily.returns, label=mean(daily.returns)))+
   scale_x_continuous(labels=percent)+
   labs(title='Distribution of Daily Returns for VTI')
 ```
-Daily returns very tightly centered around 0. 
+
+* Daily returns very tightly centered around 0. 
 
 What is the effective annual rate based on mean daily rate?
 
@@ -298,6 +299,6 @@ avg_neg <- round(mean(VTI_neg$yr_rtn),2)
 
 ### Odds
 
-* `r pc_pos*100`% chance of positive 1 yr return.
+* % chance of pos return: **`r pc_pos*100`%**
 * avg positive 1 yr return: `r avg_pos*100`%
 * avg neg 1 yr return: `r avg_neg*100`%

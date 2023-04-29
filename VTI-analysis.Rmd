@@ -221,7 +221,7 @@ vti_dfp5y %>% ggplot(aes(x=date, y=VTI.Close))+geom_line()+
 
 Suggests a conservative scenario would see us around current levels in 5 yrs or so, if reverted back to expectations based on historical trends.
 
-## Get rolling year returns
+## Get rolling 1 year returns
 
 ```{r}
 ## roll up to months
@@ -238,7 +238,66 @@ VTIm$yr_rtn <- (VTI$VTI.Close/lag.xts(VTIm$VTI.Close, k=12))-1
 dygraph(VTIm$yr_rtn)
 ```
 
-* check for longest periods of negative vs longest periods of positive
-* check ave pos vs ave neg, distribution
-* what % of the time do you lose money on YoY basis?
-* note that as of most recent data, still above water for yearly return - but getting close to underwater
+### Summary stats
+
+```{r}
+summary(VTIm$yr_rtn)
+```
+
+Data frame for more flexibility in analyzing and visualizing data.
+
+```{r}
+VTIm_df <- as.data.frame(VTIm)
+## convert rownames, which are dates, to a date col
+VTIm_df <- rownames_to_column(VTIm_df, var="date")
+VTIm_df$date <- date(VTIm_df$date)
+## add pos or neg indicators
+VTIm_df <- VTIm_df %>% mutate(
+  status = ifelse(yr_rtn>0,"pos",ifelse(yr_rtn<0,"neg","neutral"))
+)
+VTIm_df$status <- factor(VTIm_df$status)
+```
+
+```{r}
+VTIm_df %>% filter(!is.na(yr_rtn)) %>% 
+  ggplot(aes(x=date, y=yr_rtn))+
+  ## prefer geom_area but somehow doesn't work with conditional colors
+  ## aggravating!
+  geom_col(aes(fill=status))+
+  scale_fill_manual(values=c("pos"="darkgreen", "neg"="red"))+
+  scale_y_continuous(labels=percent_format())+
+  labs(title="1 yr rolling returns at end of each mth", x="", y="1 yr return - rolling")
+```
+
+### Distribution
+
+```{r}
+size_spec <- 1
+VTIm_df %>% ggplot(aes(x=yr_rtn))+geom_histogram(fill=bar_fill)+
+  geom_vline(xintercept = mean(VTIm_df$yr_rtn, na.rm=TRUE), color='blue', linetype='dotted', size=size_spec)+
+  scale_x_continuous(labels=percent_format())+
+  geom_vline(xintercept = median(VTIm_df$yr_rtn, na.rm=TRUE), color='green', linetype='dotted', size=size_spec)+
+  geom_vline(xintercept = quantile(VTIm_df$yr_rtn, 0.25, na.rm=TRUE), color='red', linetype='dotted', size=size_spec)+
+  geom_vline(xintercept=0, size=size_spec, color='black')+
+  labs(title="Distribution of Rolling 1 Yr Returns",
+       x="Rolling 1 yr return at end of mth", y="",
+       caption="lines: red=25th percentile, blue=avg, green=median, black=0")
+```
+
+```{r}
+#VTIm_df$yr_rtn
+VTI_pos <- VTIm_df %>% filter(yr_rtn>0)
+VTI_neg <- VTIm_df %>% filter(yr_rtn<0)
+
+pc_pos <- round(nrow(VTI_pos)/nrow(VTIm_df),2)
+pc_neg <- round(nrow(VTI_neg)/nrow(VTIm_df),2)
+
+avg_pos <- round(mean(VTI_pos$yr_rtn),2)
+avg_neg <- round(mean(VTI_neg$yr_rtn),2)
+```
+
+### Odds
+
+* `r pc_pos*100`% chance of positive 1 yr return.
+* avg positive 1 yr return: `r avg_pos*100`%
+* avg neg 1 yr return: `r avg_neg*100`%

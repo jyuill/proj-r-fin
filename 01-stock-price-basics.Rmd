@@ -411,16 +411,20 @@ dygraph(renewables3c) %>%
 
 Adjusted price is supposed to adjust for stock splits, while other prices are actual on the trading day.
 
-However...Tesla (TSLA) had a 5-for-1 stock split on Aug 3 dropping price from ~$2,000 to ~$400. Prices collected as of Sep 5, 2020 show post-split throughout.
+However...Tesla (TSLA) had a 5-for-1 stock split on Aug 30, 2020 dropping price from ~$2,000 to ~$400. Prices collected show consistent pricing that matches neither pre-split nor post-split???
 
 ```{r}
-getSymbols("TSLA", auto.assign = TRUE)
+getSymbols("TSLA", auto.assign = TRUE, adjusted=FALSE)
 
 ## filter for Aug, pre-split
-TSLA_presplit <- TSLA['2020-08/2020-08-30']
+TSLA_presplit <- TSLA['2020-08-25/2020-09-03']
 tail(TSLA_presplit)
 
+#TSLA_now <- TSLA['2023-03-20/2023-04-24']
+
 ```
+
+Not sure exactly how it works but something like ALL historical prices are adjusted backward in order to have useful comparisons over time. In this case, there was an additional 3-for-1 stock split on Aug 25, 2022 and all the historical data is adjusted backward to align with this latest split. 
 
 ```{r}
 #dygraph(OHLC(TSLA))
@@ -482,7 +486,6 @@ csiq_ret_df %>% ggplot(
 
 ```
 
-
 ### Stats on returns
 
 ```{r}
@@ -501,6 +504,14 @@ ggplot(CSIQ_90d_return, aes(x=CSIQ_90d_return))+geom_histogram()+
        x='Daily % chg')
 
 ```
+
+## Rolling periods
+
+Calendar divisions (year, qtr, mth, wk, day) are arbritrary. For example, if a stock typically has a sell-off in January and aggressive buying in Dec, annual calendar return may be flat, but there is potential hidden opportunity. There are unlimited scenarios of this variety. Unless you are planning to make your investments on Jan 1 and sell on Dec 31, how relevant is annual return, really?
+
+These opportunities can be surfaced by looking at rolling periods. Also, the rolling periods can be adjusted for time horizon. If you want to have confidence in returns over 5 years, looking at a collection of 5 year rolling periods can give help provide that confidence (or not).
+
+
 
 ## Time Series Manipulation
 

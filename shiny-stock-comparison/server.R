@@ -16,21 +16,39 @@ library(shinythemes)
 library(bslib)
 library(dygraphs)
 library(PerformanceAnalytics)
+library(here)
+
+## TEST AREA - manual (can leave as-is won't affect app)
+sym_list <- c("GOOG","MSFT")
+dtRng <- c('2022-01-01','2023-03-31')
+symData_all <- NULL
+## loop through to get data for each symbol
+for(symbs in sym_list){
+  cat(paste0("syms: ", syms, " symbs: ",symbs, "\n"))
+  symData_all <- cbind(symData_all,
+                       getSymbols(Symbols=symbs,
+                                  from=dtRng[1], to=dtRng[2], 
+                                  auto.assign=FALSE, src='yahoo'))
+}
+## combine results of each loop 
+symData_all
 
 # Define server logic required to draw a histogram
 function(input, output, session) {
   ## get price data based on inputs for use elsewhere
   symData_all <- reactive({
-    syms <- input$txtSym
-    sym_list <- str_split(syms, ",")
-    sym_list <- sym_list[[1]]
+    syms <- input$txtSym ## space-separated items
+    sym_list <- str_split_1(syms, " ") ## splits the space-sep items into list
+    ## empty data frame to hold results of loop
     symData_all <- NULL
+    ## loop through to get data for each symbol
     for(symbs in sym_list){
-      cat(symbs)
+      cat(paste0("syms: ", syms, " symbs: ",symbs, "\n"))
       symData_all <- cbind(symData_all,
                            getSymbols(Symbols=symbs,
                                       from=input$dtRng[1], to=input$dtRng[2], auto.assign=FALSE, src='yahoo'))
     }
+    ## combine results of each loop 
     symData_all
   })
   ## price chart - show data collected above to compare symbols

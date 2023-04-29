@@ -15,13 +15,14 @@ library(PerformanceAnalytics)
 fluidPage(
 
     # Application title
-    titlePanel("Stock Price Charts"),
+    titlePanel("Stock Price Comparisons"),
 
-    # Sidebar with a slider input for number of bins
+    # Sidebar
     sidebarLayout(
       ## sidebar panel
         sidebarPanel(
-            textInput(inputId='txtSym', label="Enter Symbol (comma sep, no space)", value="^GSPC"),
+            textInput(inputId='txtSym', label="Enter Symbol (sep with single space, no commas)", value="^GSPC META AMZN AAPL NFLX GOOG"),
+            tags$a(href="https://finance.yahoo.com/lookup/", "Stock symbol lookup"),
             dateRangeInput(inputId='dtRng', label='Date Range', start='2022-01-01', end='2022-12-31' )
         ),
         ## main panel

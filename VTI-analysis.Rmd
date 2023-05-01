@@ -37,11 +37,11 @@ bar_fill <- 'cornflowerblue'
 
 ## VTI Analysis
 
-Looking at trends, recent status, and expectations for [Vanguard Total Stock Market Index ETF (VTI)](https://investor.vanguard.com/investment-products/etfs/profile/vti) as an exercise in simple quantitative analysis.
+Looking at trends, recent status, and expectations for [Vanguard Total Stock Market Index ETF (VTI)](https://investor.vanguard.com/investment-products/etfs/profile/vti) as an exercise in simple quantitative financial analysis.
 
 This ETF covers the whole US stock market, so makes an interesting case to analyze, using various features available within R.  
 
-### Get Data
+## Get Data
 
 ```{r cars}
 getSymbols(c("VTI","^GSPC"), auto.assign=TRUE) ## auto.assign=TRUE saves object; FALSE prints out data
@@ -53,9 +53,11 @@ dygraph(Cl(GSPC))
 
 VTI tracks S&P 500 very closely.
 
-### Returns
+## Returns
 
-#### Daily Returns
+Prices are all well and good - but **returns** are what matter. Returns are the game.
+
+### Daily Returns
 
 ```{r}
 VTI_return <- dailyReturn(VTI)
@@ -63,7 +65,13 @@ dygraph(VTI_return)
 
 ## summary stats
 summary(VTI_return)
+```
 
+#### Distribution of daily returns
+
+How are the daily return values spread out across a range of values?
+
+```{r}
 ## distribution
 #hist(VTI_return)
 
@@ -89,17 +97,71 @@ VTI_return_df %>% ggplot(aes(x=daily.returns, label=mean(daily.returns)))+
 
 What is the effective annual rate based on mean daily rate?
 
+Even though close to 0 on a daily basis, the average being a little above zero means the return will likely add up and even compaund over a longer period, like a year.
+
 ```{r}
 i <- mean(VTI_return_df$daily.returns)
-fv <- (1+i)^365-1
+fv <- (1+i)^252-1
 paste(prettyNum(fv*100, digits=3),"%")
 ```
 
+(using estimated 252 trading days a year)
 
+The actual annual return will depend on where in the data set you are starting and ending the year. We'll address this further down with rolling return periods.
 
+### Monthly Returns
 
+Let's take a look at monthly returns. 
+
+```{r}
+VTI_return_m <- monthlyReturn(VTI)
+## data frame for visualization options
+VTI_return_m_df <- as.data.frame(VTI_return_m)
+VTI_return_m_df <- VTI_return_m_df %>% rownames_to_column("date")
+```
+
+```{r}
+metric <- "monthly.returns"
+## data set to use for mean, median, pc calcs
+ref_data <- VTI_return_m_df$monthly.returns
+y_pr <- 28
+y_sec <- 26
+y_th <- 24
+
+VTI_return_m_df %>% ggplot(aes(x=.data[[metric]], label=mean(.data[[metric]])))+
+  geom_histogram(fill=bar_fill)+
+  geom_vline(xintercept=mean(ref_data), linetype='dashed')+
+  geom_vline(xintercept=quantile(ref_data, 0.25), linetype='dotted')+
+  geom_vline(xintercept=quantile(ref_data, 0.75), linetype='dotted')+
+  annotate(geom = 'text', 
+           label=paste0("mean= ",prettyNum(mean(ref_data)*100, digits=2),"%"), x=mean(ref_data), y=y_pr, color='blue')+
+  annotate(geom='text', label="lower 25%", x=quantile(ref_data, 0.25)-0.02, color='blue', y=y_sec)+
+  annotate(geom='text', label="upper 75%", x=quantile(ref_data, 0.75)+0.02, color='blue', y=y_sec)+
+  scale_y_continuous(labels=comma, expand=expansion(mult=c(0,0.1)))+
+  scale_x_continuous(labels=percent)+
+  labs(title='Distribution of Monthly Returns for VTI')
+```
+
+* More spread in the data, to be expected since it is a longer time period and changes should be larger. 
+* Average is still close to 0, but noticeably higher than daily average.
+
+```{r}
+i <- mean(VTI_return_m_df$monthly.returns)
+fv <- (1+i)^12-1
+paste(prettyNum(fv*100, digits=3),"%")
+```
+
+Annualized rate of the average turns out to be a little lower than annualized daily rate.
 
 ## Get rolling 1 year returns
+
+Similarly, we can look at annual returns but really this is only meaningful if you are investing right at the beginning of the calendar year and want to know how much return you get at the end of the calendar year. It's an arbitrary time period.
+
+To better understand what you may expect from any investment over a 1 year time frame we can:
+
+* take the price at end of each month
+* compare that to the price at the end of the same month a year ago.
+* calculate all those 1 yr returns.
 
 ```{r}
 ## roll up to months

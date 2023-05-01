@@ -26,6 +26,7 @@ library(DT)
 library(quantmod)
 library(dygraphs)
 library(forecast)
+library(gt)
 
 options(scipen = 10)
 theme_set(theme_light())
@@ -36,7 +37,9 @@ bar_fill <- 'cornflowerblue'
 
 ## VTI Analysis
 
-Looking at trends, recent status, and expectations for Vanguard VTI ETF.
+Looking at trends, recent status, and expectations for [Vanguard Total Stock Market Index ETF (VTI)](https://investor.vanguard.com/investment-products/etfs/profile/vti) as an exercise in simple quantitative analysis.
+
+This ETF covers the whole US stock market, so makes an interesting case to analyze, using various features available within R.  
 
 ### Get Data
 
@@ -92,135 +95,9 @@ fv <- (1+i)^365-1
 paste(prettyNum(fv*100, digits=3),"%")
 ```
 
-### Decompose 
 
-```{r}
-vti_dc <- decompose(ts(VTI$VTI.Close, frequency=365), type='additive')
-plot(vti_dc)
-```
 
-Can see:
 
-* gradual upward trend, acceleratiing in recent periods.
-* seasonal pattern within the years: looks like starts high, drops off in early part of year and then climbs back up.
-
-### Trends
-
-```{r}
-vti_df <- data.frame(VTI)
-vti_df$date <- index(VTI)
-```
-
-```{r}
-vti_df %>% ggplot(aes(x=date, y=VTI.Close))+geom_line()+
-  geom_smooth(method='lm')
-```
-
-Linear model based on VTI.Close:
-
-(technically NOT supposed to use linear regression with time series, because violates the autocorrelation rule: residuals should not be correlated.)
-
-```{r}
-vti_lm <- lm(formula=VTI.Close~date, data=vti_df)
-summary(vti_lm)
-
-# doesn't work - just runs without stop
-#vti_tslm <- tslm(formula=VTI.Close~date, data=VTI)
-#summary(vti_tslm)
-# also doesn't work
-#tslm(VTI.Close ~ trend+season, data=VTI)
-
-```
-
-Remove Data 2020 and Beyond
-
-```{r}
-vti_df_2020 <- vti_df %>% filter(date<='2019-12-31')
-vti_df_2020 %>% ggplot(aes(x=date, y=VTI.Close))+geom_line()+
-  geom_smooth(method='lm')
-```
-```{r}
-vti_2020_lm <- lm(formula=VTI.Close~date, data=vti_df_2020)
-summary(vti_2020_lm)
-```
-
-```{r}
-#vti_2021 <- vti_df %>% filter(date>'2019-12-31')
-#pvti_2021 <- vti_2021 %>% select(date)
-#predict(vti_2020_lm, newdata=pvti_2021)
-#pvti_2021$clpred <- predict(vti_2020_lm, newdata=pvti_2021)
-#ggplot(pvti_2021, aes(x=date, y=clpred))+geom_line()
-
-## pre-2020 lm to make predictions of close for whole set
-pvti <- vti_df %>% select(date)
-pvti$clpred <- predict(vti_2020_lm, newdata=pvti)
-
-vti_dfp <- left_join(vti_df, pvti, by='date')
-```
-
-Expected trend beyond 2019 based on linear model for pre-2020 period:
-
-```{r}
-vti_dfp %>% ggplot(aes(x=date, y=VTI.Close))+geom_line()+
-  geom_line(aes(y=clpred))
-```
-
-One conclusion could be that VTI is currently over-priced and should be closer to 160 to be in line with historical trends.
-
-Lets extend the prediction out:
-
-* 6 months
-
-```{r}
-## pre-2020 lm to make predictions into the future
-pvti <- vti_df %>% select(date)
-pvti_6m <- data.frame(date=seq.Date(from=Sys.Date(), to=Sys.Date()+180, by='day')) 
-pvti <- bind_rows(pvti, pvti_6m)
-pvti$clpred6 <- predict(vti_2020_lm, newdata=pvti)
-
-vti_dfp2 <- full_join(vti_df, pvti, by='date')
-```
-
-```{r}
-vti_dfp2 %>% ggplot(aes(x=date, y=VTI.Close))+geom_line()+
-  geom_line(aes(y=clpred6))
-```
-
-* 1 yr out
-
-```{r}
-## pre-2020 lm to make predictions into the future
-pvti <- vti_df %>% select(date)
-pvti_1y <- data.frame(date=seq.Date(from=Sys.Date(), to=Sys.Date()+365, by='day')) 
-pvti <- bind_rows(pvti, pvti_1y)
-pvti$clpred1y <- predict(vti_2020_lm, newdata=pvti)
-
-vti_dfp3 <- full_join(vti_df, pvti, by='date')
-```
-
-```{r}
-vti_dfp3 %>% ggplot(aes(x=date, y=VTI.Close))+geom_line()+
-  geom_line(aes(y=clpred1y))
-```
-
-* 5 years out
-
-```{r}
-## pre-2020 lm to make predictions into the future
-pvti <- vti_df %>% select(date)
-pvti_5y <- data.frame(date=seq.Date(from=Sys.Date(), to=Sys.Date()+(365*5), by='day')) 
-pvti <- bind_rows(pvti, pvti_5y)
-pvti$clpred5y <- predict(vti_2020_lm, newdata=pvti)
-
-vti_dfp5y <- full_join(vti_df, pvti, by='date')
-```
-
-```{r}
-vti_dfp5y %>% ggplot(aes(x=date, y=VTI.Close))+geom_line()+
-  geom_line(aes(y=clpred5y))
-```
-
-Suggests a conservative scenario would see us around current levels in 5 yrs or so, if reverted back to expectations based on historical trends.
 
 ## Get rolling 1 year returns
 
@@ -229,13 +106,11 @@ Suggests a conservative scenario would see us around current levels in 5 yrs or 
 end_mth <- endpoints(VTI, on="months")
 VTIm <- VTI[end_mth,]
 
-VTIm$yr_rtn <- (VTI$VTI.Close/lag.xts(VTIm$VTI.Close, k=12))-1
-#VTImr <- monthlyReturn(VTI$VTI.Close)
+VTIm$yr_rtn <- (VTI$VTI.Adjusted/lag.xts(VTIm$VTI.Adjusted, k=12))-1
 
 ```
 
 ```{r}
-#dygraph(VTIm$VTI.Close)
 dygraph(VTIm$yr_rtn)
 ```
 
@@ -267,23 +142,33 @@ VTIm_df %>% filter(!is.na(yr_rtn)) %>%
   geom_col(aes(fill=status))+
   scale_fill_manual(values=c("pos"="darkgreen", "neg"="red"))+
   scale_y_continuous(labels=percent_format())+
-  labs(title="1 yr rolling returns at end of each mth", x="", y="1 yr return - rolling")
+  labs(title="1 yr rolling returns at end of each mth", x="", y="1 yr return - rolling")+theme(legend.position = "none")
 ```
 
 ### Distribution
 
 ```{r}
 size_spec <- 1
+clr_avg <- 'blue'
+clr_med <- 'green'
+clr_pc_20 <- 'red'
+clr_0 <- 'black'
 VTIm_df %>% ggplot(aes(x=yr_rtn))+geom_histogram(fill=bar_fill)+
-  geom_vline(xintercept = mean(VTIm_df$yr_rtn, na.rm=TRUE), color='blue', linetype='dotted', size=size_spec)+
+  geom_vline(xintercept = mean(VTIm_df$yr_rtn, na.rm=TRUE), color=clr_avg, linetype='dotted', size=size_spec)+
   scale_x_continuous(labels=percent_format())+
-  geom_vline(xintercept = median(VTIm_df$yr_rtn, na.rm=TRUE), color='green', linetype='dotted', size=size_spec)+
-  geom_vline(xintercept = quantile(VTIm_df$yr_rtn, 0.25, na.rm=TRUE), color='red', linetype='dotted', size=size_spec)+
-  geom_vline(xintercept=0, size=size_spec, color='black')+
+  geom_vline(xintercept = median(VTIm_df$yr_rtn, na.rm=TRUE), color=clr_med, linetype='dotted', size=size_spec)+
+  geom_vline(xintercept = quantile(VTIm_df$yr_rtn, 0.20, na.rm=TRUE), color=clr_pc_20, linetype='dotted', size=size_spec)+
+  geom_vline(xintercept=0, size=size_spec, color=clr_0)+
   labs(title="Distribution of Rolling 1 Yr Returns",
        x="Rolling 1 yr return at end of mth", y="",
-       caption="lines: red=25th percentile, blue=avg, green=median, black=0")
+       caption="lines: red=20th percentile, blue=avg, green=median, black=0")+
+  theme(plot.caption = element_text(hjust=0))
 ```
+
+### Expectations
+
+* How likely to get positive annual returns looking back from any month?
+* How much can we expect the positive returns to be? (and for negative returns, how much can we expect them to be?)
 
 ```{r}
 #VTIm_df$yr_rtn
@@ -297,8 +182,349 @@ avg_pos <- round(mean(VTI_pos$yr_rtn),2)
 avg_neg <- round(mean(VTI_neg$yr_rtn),2)
 ```
 
-### Odds
-
 * % chance of pos return: **`r pc_pos*100`%**
 * avg positive 1 yr return: `r avg_pos*100`%
 * avg neg 1 yr return: `r avg_neg*100`%
+
+### Periods
+
+What is the longest and average length of consecutive negative period? (in months)
+
+```{r}
+## cumulative count by status -> use rle: run length encoding
+runlgth <- rle(as.character(VTIm_df$status))
+rl_df <- data.frame(status=runlgth$values, mths=runlgth$lengths)
+
+neg <- rl_df %>% filter(status=='neg') 
+
+#max(neg$mths)
+#median(neg$mths)
+#mean(neg$mths)
+```
+
+```{r}
+clr_pc_80 <- 'purple'
+size_t <- 3
+nudge <- 1.08
+halign <- 3.5
+neg %>% ggplot(aes(x=mths))+
+  geom_histogram(fill=bar_fill)+
+  geom_vline(xintercept=mean(neg$mths), color=clr_avg)+
+  annotate(geom='text', label=mean(neg$mths), 
+           x=mean(neg$mths)*nudge, y=halign, 
+           size=size_t, color=clr_avg)+
+  geom_vline(xintercept = median(neg$mths), color=clr_med)+
+  annotate(geom='text', label=median(neg$mths),
+           x=median(neg$mths)*nudge, y=halign,
+           size=size_t, color=clr_med)+
+  geom_vline(xintercept=quantile(neg$mths, 0.8), color=clr_pc_80)+
+  annotate(geom='text', label=quantile(neg$mths, 0.8),
+           x=quantile(neg$mths, 0.8)*nudge, y=halign,
+           size=size_t, color=clr_pc_80)+
+  labs(title='Distribution of # of Consective Neg. Mths',
+       x="# of mths", y="",
+       caption='lines: purple=80th percentile, blue=avg, green=median')+
+  theme(plot.caption=element_text(hjust=0))
+```
+
+Stats on number of consecutive months with negative rolling 1 yr returns:
+
+```{r}
+# table for data
+tbl_mths_yr <- tribble(
+  ~measure, ~`# mths`,
+  'max period of neg returns',max(neg$mths),
+  'ave period of neg returns',mean(neg$mths),
+  'median period of neg returns',median(neg$mths),
+  '80th pctile: 80% chance per will be less', quantile(neg$mths, 0.8)
+)
+gt(tbl_mths_yr)
+```
+
+## 3 yr rolling
+
+```{r}
+VTIm$yr3_rtn <- (VTI$VTI.Adjusted/lag.xts(VTIm$VTI.Adjusted, k=36))-1
+
+## convert to annualized returns
+VTIm$yr3_rtn_an <- (1+VTIm$yr3_rtn)^(1/3)-1
+```
+
+```{r}
+#dygraph(VTIm$yr3_rtn)
+VTIm[,8:9] %>% dygraph(main='3 yr returns - rolling mthly') %>%
+ dySeries('yr3_rtn', label='3 yr return') %>%
+ dySeries('yr3_rtn_an', label='3 yr annualized')
+```
+
+### Summary stats
+
+```{r}
+summary(VTIm$yr3_rtn)
+summary(VTIm$yr3_rtn_an)
+```
+
+Data frame for more flexibility in analyzing and visualizing data.
+
+```{r}
+## add new col to existing data frame
+VTIm_df <- cbind(VTIm_df, VTIm$yr3_rtn) 
+VTIm_df <- VTIm_df %>% mutate(
+  yr3_rtn_an = (1+yr3_rtn)^(1/3)-1,
+  status3 = ifelse(yr3_rtn>0,"pos",ifelse(yr3_rtn<0,"neg","neutral"))
+)
+```
+
+```{r}
+VTIm_df %>% filter(!is.na(yr3_rtn)) %>% 
+  ggplot(aes(x=date, y=yr3_rtn))+
+  ## geom_area works for this one
+  geom_area(aes(fill=status3))+
+  scale_fill_manual(values=c("pos"="darkgreen", "neg"="red"))+
+  ## layer in line for annualized returns
+  geom_line(aes(y=yr3_rtn_an))+
+  scale_y_continuous(labels=percent_format())+
+  labs(title="3 yr rolling returns at end of each mth", x="", y="3 yr return - rolling",
+       caption='line = annualized returns')+theme(legend.position = "none", plot.caption=element_text(hjust=0))
+```
+
+### Distribution
+
+How are 3 yr returns distributed over the period?
+
+#### 3 yr returns
+
+```{r}
+size_spec <- 1
+VTIm_df %>% ggplot(aes(x=yr3_rtn))+geom_histogram(fill=bar_fill)+
+  geom_vline(xintercept = mean(VTIm_df$yr3_rtn, na.rm=TRUE), color=clr_avg, linetype='dotted', size=size_spec)+
+  scale_x_continuous(labels=percent_format())+
+  geom_vline(xintercept = median(VTIm_df$yr3_rtn, na.rm=TRUE), color=clr_med, linetype='dotted', size=size_spec)+
+  geom_vline(xintercept = quantile(VTIm_df$yr3_rtn, 0.20, na.rm=TRUE), color=clr_pc_20, linetype='dotted', size=size_spec)+
+  geom_vline(xintercept=0, size=size_spec, color=clr_0)+
+  labs(title="Distribution of Rolling 3 Yr Returns",
+       x="Rolling 3 yr return at end of mth", y="",
+       caption="lines: red=20th percentile, blue=avg, green=median, black=0")
+```
+
+#### Annualized for comparison
+
+```{r}
+cut <- '3 yr (annualized)'
+metric <- 'yr3_rtn_an'
+## data set to use for mean, median, pc calcs
+ref_data <- VTIm_df$yr3_rtn_an
+qtle <- 0.20 # set percentile
+# formatting
+clr_qtle <- clr_pc_20
+clr_avg <- clr_avg
+clr_med <- clr_med
+clr_0 <- clr_0
+size_pr <- 1
+ltype_pr <- 'dotted'
+
+## chart
+VTIm_df %>% ggplot(aes(x=.data[[metric]]))+
+  geom_histogram(fill=bar_fill)+
+  scale_x_continuous(labels=percent_format())+
+  geom_vline(xintercept=mean(ref_data, na.rm=TRUE), 
+             color=clr_avg,
+             linetype=ltype_pr,
+             size=size_pr)+
+    geom_vline(xintercept=median(ref_data, na.rm=TRUE), 
+             color=clr_med,
+             linetype=ltype_pr,
+             size=size_pr)+
+    geom_vline(xintercept=quantile(ref_data, qtle, na.rm=TRUE), 
+             color=clr_qtle,
+             linetype=ltype_pr,
+             size=size_pr)+
+  geom_vline(xintercept=0, 
+             size=size_pr, 
+             color=clr_0)+
+  labs(title=paste0("Distribution of Rolling ",cut," Returns"),
+       x=paste0("Rolling ", cut," at end of mth"), 
+       y="",
+       caption=paste0("lines: ",clr_avg,"=avg, ", clr_med,"=median, ",clr_qtle,"=",qtle*100,"th percentile, ",clr_0,"=0"))+
+  theme(plot.caption=element_text(hjust=0))
+  
+```
+
+### Expectations
+
+* How likely to get positive 3 yr returns looking back from any month?
+* How much can we expect the positive returns to be? (and for negative returns, how much can we expect them to be?)
+
+```{r}
+#VTIm_df$yr_rtn
+VTI_pos <- VTIm_df %>% filter(yr3_rtn>0)
+VTI_neg <- VTIm_df %>% filter(yr3_rtn<0)
+
+pc_pos <- round(nrow(VTI_pos)/nrow(VTIm_df),2)
+pc_neg <- round(nrow(VTI_neg)/nrow(VTIm_df),2)
+
+avg_pos <- round(mean(VTI_pos$yr3_rtn),2)
+avg_neg <- round(mean(VTI_neg$yr3_rtn),2)
+
+## annualized
+avg_pos_an <- round(mean(VTI_pos$yr3_rtn_an),2)
+avg_neg_an <- round(mean(VTI_neg$yr3_rtn_an),2)
+```
+
+* % chance of pos 3 yr return: **`r pc_pos*100`%**
+* avg positive 3 yr total return: `r avg_pos*100`%
+* avg neg 3 yr total return: `r avg_neg*100`%
+
+On annualized basis:
+
+* avg positive 3 yr total return: `r avg_pos_an*100`%
+* avg neg 3 yr total return: `r avg_neg_an*100`%
+
+## Initial Conclusions
+
+Past results do not guarantee similar future results. This is a limited sample of historical information.
+
+That said, this data suggests the investment is very reliable over the longer term, beyond 1 yr and especially beyond 3 yrs.
+
+* much higher % of cases (months) with positive returns.
+* ave annualized returns well above typical 'risk-free' rate suggest good risk/return ratio. 
+
+## Time Series Analysis
+
+### Decompose 
+
+```{r}
+vti_dc <- decompose(ts(VTI$VTI.Adjusted, frequency=365), type='additive')
+plot(vti_dc)
+```
+
+Can see:
+
+* gradual upward trend, acceleratiing in recent periods.
+* seasonal pattern within the years: looks like starts high, drops off in early part of year and then climbs back up.
+
+### Trends
+
+```{r}
+vti_df <- data.frame(VTI)
+vti_df$date <- index(VTI)
+```
+
+```{r}
+vti_df %>% ggplot(aes(x=date, y=VTI.Adjusted))+geom_line()+
+  geom_smooth(method='lm')
+```
+
+### Linear model
+
+Linear model based on VTI.Adjusted:
+
+(technically DUBIOUS to use linear regression with time series, because violates the autocorrelation rule: residuals should not be correlated.)
+
+```{r}
+vti_lm <- lm(formula=VTI.Adjusted~date, data=vti_df)
+summary(vti_lm)
+```
+
+#### Remove Data 2020 and Beyond
+
+* since looks like anamoly - want to focus on more reliable patterns
+
+```{r}
+vti_df_2020 <- vti_df %>% filter(date<='2019-12-31')
+vti_df_2020 %>% ggplot(aes(x=date, y=VTI.Adjusted))+geom_line()+
+  geom_smooth(method='lm')
+```
+```{r}
+vti_2020_lm <- lm(formula=VTI.Adjusted~date, data=vti_df_2020)
+summary(vti_2020_lm)
+```
+
+```{r}
+## pre-2020 lm to make predictions of close for whole set
+pvti <- vti_df %>% select(date)
+pvti$clpred <- predict(vti_2020_lm, newdata=pvti)
+
+vti_dfp <- left_join(vti_df, pvti, by='date')
+```
+
+Expected trend beyond 2019 based on linear model for pre-2020 period:
+
+```{r}
+vti_dfp %>% ggplot(aes(x=date, y=VTI.Adjusted))+geom_line()+
+  geom_line(aes(y=clpred))
+```
+
+### Forecasting
+
+One conclusion could be that VTI is currently over-priced and should be closer to 160 to be in line with historical trends.
+
+Lets extend the prediction out:
+
+* 6 months
+
+```{r}
+## pre-2020 lm to make predictions into the future
+pvti <- vti_df %>% select(date)
+pvti_6m <- data.frame(date=seq.Date(from=Sys.Date(), to=Sys.Date()+180, by='day')) 
+pvti <- bind_rows(pvti, pvti_6m)
+pvti$clpred6 <- predict(vti_2020_lm, newdata=pvti)
+
+vti_dfp2 <- full_join(vti_df, pvti, by='date')
+```
+
+```{r}
+vti_dfp2 %>% ggplot(aes(x=date, y=VTI.Adjusted))+geom_line()+
+  geom_line(aes(y=clpred6))
+```
+
+* 1 yr out
+
+```{r}
+## pre-2020 lm to make predictions into the future
+pvti <- vti_df %>% select(date)
+pvti_1y <- data.frame(date=seq.Date(from=Sys.Date(), to=Sys.Date()+365, by='day')) 
+pvti <- bind_rows(pvti, pvti_1y)
+pvti$clpred1y <- predict(vti_2020_lm, newdata=pvti)
+
+vti_dfp3 <- full_join(vti_df, pvti, by='date')
+```
+
+```{r}
+vti_dfp3 %>% ggplot(aes(x=date, y=VTI.Adjusted))+geom_line()+
+  geom_line(aes(y=clpred1y))
+```
+
+* 5 years out
+
+```{r}
+## pre-2020 lm to make predictions into the future
+pvti <- vti_df %>% select(date)
+pvti_5y <- data.frame(date=seq.Date(from=Sys.Date(), to=Sys.Date()+(365*5), by='day')) 
+pvti <- bind_rows(pvti, pvti_5y)
+pvti$clpred5y <- predict(vti_2020_lm, newdata=pvti)
+
+vti_dfp5y <- full_join(vti_df, pvti, by='date')
+```
+
+```{r}
+vti_dfp5y %>% ggplot(aes(x=date, y=VTI.Adjusted))+geom_line()+
+  geom_line(aes(y=clpred5y))
+```
+
+Suggests a conservative scenario would see us around current levels in 5 yrs or so, if reverted back to expectations based on historical trends.
+
+More precisely, the model is predicting that with historical trends, the current level will be reached...
+
+```{r}
+## get most recent value in data
+tgt <- tail(VTI, n=1)$VTI.Adjusted
+## determine when this should be reached with model
+vti_dfp5y %>% filter(clpred5y>=tgt$VTI.Adjusted[[1]]) %>% select(date, clpred5y) %>% filter(date==min(date))
+```
+
+On the other hand, if there is a drop or gradual drift down below the line, could *potentially* represent a promising opportunity over the longer-term. 
+
+## Final Conclusion
+
+Obviously simplistic analysis that you wouldn't want to rely on for serious decisions, but nevertheless interesting for exploration and intellectual amusement.

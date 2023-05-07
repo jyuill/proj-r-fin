@@ -18,22 +18,7 @@ library(dygraphs)
 library(PerformanceAnalytics)
 library(here)
 
-## TEST AREA - manual (can leave as-is won't affect app)
-sym_list <- c("GOOG","MSFT")
-dtRng <- c('2022-01-01','2023-03-31')
-symData_all <- NULL
-## loop through to get data for each symbol
-for(symbs in sym_list){
-  cat(paste0("syms: ", syms, " symbs: ",symbs, "\n"))
-  symData_all <- cbind(symData_all,
-                       getSymbols(Symbols=symbs,
-                                  from=dtRng[1], to=dtRng[2], 
-                                  auto.assign=FALSE, src='yahoo'))
-}
-## combine results of each loop 
-symData_all
-
-# Define server logic required to draw a histogram
+## Function to fetch price data for selected symbols
 function(input, output, session) {
   ## get price data based on inputs for use elsewhere
   symData_all <- reactive({

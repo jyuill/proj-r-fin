@@ -77,6 +77,29 @@ etf_nosp <- etf_all[,7:ncol(etf_all)]
 dygraph(Cl(etf_nosp))
 ```
 
+## Normalized price ranges for comparison
+
+To enable better comparison of prices, we can normalize them with min-max-normalization to set them all between 0 and 1. 
+
+From chatGPT:
+"Normalizing between 0 and 1 (also called min-max normalization) scales the variables to have a minimum value of 0 and a maximum value of 1. This method is useful when you want to preserve the original range of the data and the relationship between the values."
+
+```{r}
+## first remove any NA values - they will mess up calculations
+etf_all <- na.omit(etf_all)
+## use apply to calc min-max normalization
+etf_all_mmn <- xts(apply(etf_all, 2, function(x) (x-min(x))/(max(x)-min(x))), 
+                   order.by=index(etf_all))
+```
+
+```{r}
+dygraph(Cl(etf_all_mmn))
+```
+
+More useful view where we can see the tight connection in prices - and instances where the connection is not so tight.
+
+Still, to get to the heart of the matter, we need to look at **returns**.
+
 ## Get Returns
 
 'cause in the end: **returns are what matter** ;)
@@ -128,15 +151,6 @@ From [Performance Analytics: An Indispensable Quant Tool for Any Investor](https
 
 "The diagonal gives you the return distribution of each ETF. I like to see how the returns are distributed—are they concentrated in the center? are there lots of outliers? are they heavily skewed? is something just weird? Indeed, this plot recently helped me immediately throw out a position under consideration because the distribution was barbelled (but more heavy left-tailed)."
 
-## Upside/Downside Capture
-
-Not actually sure how to interpret.
-
-```{r}
-chart.CaptureRatios(Ra=etf_mth_ret_cl[,2:4], Rb=etf_mth_ret_cl[,"X.GSPC.Close"], colorset="dodgerblue4",
-    main="Capture Ratio")
-```
-
 ## Distribution of Returns
 
 Focus on individual distribution of returns.
@@ -181,3 +195,11 @@ chart.Drawdown(etf_mth_ret_cl, geometric=TRUE, legend.loc='bottomleft', plot.eng
 
 ```
 
+## Upside/Downside Capture
+
+Not actually sure how to interpret.
+
+```{r}
+chart.CaptureRatios(Ra=etf_mth_ret_cl[,2:4], Rb=etf_mth_ret_cl[,"X.GSPC.Close"], colorset="dodgerblue4",
+    main="Capture Ratio")
+```

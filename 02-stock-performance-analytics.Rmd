@@ -32,10 +32,10 @@ library(dygraphs)
 
 ## Intro
 
-Examples of return and portfolio analysis that can be done with the PerformanceAnalytics package.
+Examples of return and portfolio analysis that can be done with the PerformanceAnalytics package. A basic starting point, **far from comprehensive**.
 
-* [Performance Analytics pkg manual](https://cran.r-project.org/web/packages/PerformanceAnalytics/PerformanceAnalytics.pdf)
-* [Blog post: Performance Analytics: An Indispensable Quant Tool for Any Investor](https://franklinparker.com/2019/02/16/performanceanalytics-an-indespensible-quant-tool-for-any-investor/)
+* [Performance Analytics pkg manual](https://cran.r-project.org/web/packages/PerformanceAnalytics/PerformanceAnalytics.pdf) - very thorough documentation but the challenge is it is arranged alphabetically by function (as typical of R vignettes). Works best if you already know what you are looking for, rather than a linear learning tool. There is an intro section that provides some lay-of-the-land for returns-based-analysis (RBA).
+* [Blog post: Performance Analytics: An Indispensable Quant Tool for Any Investor](https://franklinparker.com/2019/02/16/performanceanalytics-an-indespensible-quant-tool-for-any-investor/) - brief but helpful tips on getting started.
 
 ## Get Price Data
 
@@ -64,17 +64,7 @@ head(etf_all)
 * Prices: not that useful because scale comes into play, and is irrelevant
 
 ```{r}
-dygraph(Cl(etf_all))
-```
-
-### Selected viz
-
-* with S&P 500 removed to zoom in on ETFS
-* easier to pick out price relationship but still not that useful, since affected mainly by scale
-
-```{r}
-etf_nosp <- etf_all[,7:ncol(etf_all)]
-dygraph(Cl(etf_nosp))
+dygraph(Ad(etf_all))
 ```
 
 ## Normalized price ranges for comparison
@@ -93,7 +83,7 @@ etf_all_mmn <- xts(apply(etf_all, 2, function(x) (x-min(x))/(max(x)-min(x))),
 ```
 
 ```{r}
-dygraph(Cl(etf_all_mmn))
+dygraph(Ad(etf_all_mmn))
 ```
 
 More useful view where we can see the tight connection in prices - and instances where the connection is not so tight.
@@ -114,37 +104,24 @@ useful statistical qualities."*
 
 ### Convert price data to returns
 
+Using monthly returns in this case.
+
 ```{r}
-## monthly returns
-## 1. convert time series to monthly OHLC
-## - doesn't convert the whole set at once - need to do each symbol individually
-## - need to use symbols for col names, otherwise will mangle them, even though already there
-etf_all_mth <- NULL
-etf_all_mth_ret <- NULL
+## potentially simpler way to calc monthly returns
+## calc only on adjusted prices - every 6th col
+etf_mth_ret <- NULL
 for(i in 1:length(etf_symbols)){
-  ## get cols based on position
-  cstart <- i*6-5
-  cend <- cstart+5
-  etf_mth <- to.monthly(etf_all[,cstart:cend], name=etf_symbols[i])
-  etf_all_mth <- cbind(etf_all_mth, etf_mth)
-  #etf_mth_ret <- Return.calculate(etf_mth)
-  #etf_all_mth_ret <- cbind(etf_all_mth_ret, etf_mth_ret)
+  cadj <- i*6
+  etf_mr <- monthlyReturn(etf_all[,cadj])
+  colnames(etf_mr) <- etf_symbols[i]
+  etf_mth_ret <- cbind(etf_mth_ret, etf_mr)
 }
-## 2. calc returns on monthly prices
-## - gets returns for all cols
-etf_mth_ret <- Return.calculate(etf_all_mth)
 ```
 
 ## Correlations
 
 ```{r}
-## get Close cols
-cols <- which(str_detect(colnames(etf_mth_ret), "Close"))
-etf_mth_ret_cl <- etf_mth_ret[,cols]
-## convert to data frame 
-etf_mth_ret_df <- data.frame(etf_mth_ret_cl)
-## correlation chart
-chart.Correlation(etf_mth_ret_df)
+chart.Correlation(etf_mth_ret)
 ```
 
 From [Performance Analytics: An Indispensable Quant Tool for Any Investor](https://franklinparker.com/2019/02/16/performanceanalytics-an-indespensible-quant-tool-for-any-investor/)
@@ -153,7 +130,10 @@ From [Performance Analytics: An Indispensable Quant Tool for Any Investor](https
 
 ## Distribution of Returns
 
-Focus on individual distribution of returns.
+Focus on individual distribution of returns:
+
+* line is normal curve
+* shows 95% value at risk level (incl. modified)
 
 ```{r}
 ## function for producing individual dist
@@ -167,39 +147,46 @@ fn_ind_rtn_dist <- function(sel, symbs, data){
 ```
 
 ```{r}
-fn_ind_rtn_dist(2, etf_symbols, etf_mth_ret_df)
-```
+nsymb <- length(etf_symbols)
+mfr <- ifelse(nsymb<4,1,round(nsymb/2))
+mfc <- min(nsymb,3)
+par(mfrow=c(mfr,mfc))
+for(c in 1:length(etf_symbols)){
+ fn_ind_rtn_dist(c, etf_symbols, etf_mth_ret)  
+}
 
-```{r}
-fn_ind_rtn_dist(3, etf_symbols, etf_mth_ret_df)
 ```
-
-```{r}
-fn_ind_rtn_dist(4, etf_symbols, etf_mth_ret_df)
-```
-
-```{r}
-fn_ind_rtn_dist(1, etf_symbols, etf_mth_ret_df)
-```
-
 
 ## Drawdown comparisons
 
 Shows how resilient investment is during negative return situations.
 
+* downward movement relative to a high.
+
 ```{r}
 #sel <- 1
 #chart.Drawdown(etf_mth_ret_cl[,sel], geometric=TRUE, colorset="firebrick4", main=etf_symbols[sel])
 ## plot.engine options: ggplot2, plotly, dygraph, googlevis, default
-chart.Drawdown(etf_mth_ret_cl, geometric=TRUE, legend.loc='bottomleft', plot.engine="dygraph")
+chart.Drawdown(etf_mth_ret, geometric=TRUE, legend.loc='bottomleft', plot.engine="dygraph")
 
 ```
 
 ## Upside/Downside Capture
 
-Not actually sure how to interpret.
+Shows the relative percentage of upside and downside captured by an asset relative to a benchmark.
 
 ```{r}
-chart.CaptureRatios(Ra=etf_mth_ret_cl[,2:4], Rb=etf_mth_ret_cl[,"X.GSPC.Close"], colorset="dodgerblue4",
+chart.CaptureRatios(Ra=etf_mth_ret[,2:4], Rb=etf_mth_ret[,"X.GSPC"], colorset="dodgerblue4",
     main="Capture Ratio")
 ```
+
+Couple things to note:
+
+* the benchmark will be situated where the x and y axes cross at 1. This is because it captures 100% of the upside and downside of itself.
+* other assets are then evaluated by how far and what direction they sit on both x and y axis from the benchmark.
+* downside that is lower than 1 means the asset tends to not to react with as much losses on the downside as the benchmark.
+* upside greater than 1 means the asset tends to see greater gains on the upside than the benchmark.
+
+## Conclusion
+
+Lots to work with in the PerformanceAnalytics package - these examples are not even scratching the surface. Likely have further editions to come. 

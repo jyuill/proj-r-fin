@@ -56,10 +56,13 @@ Keep track of status of krypto portfolio over time, based on transactions combin
 6. Copy down formulas in spreadsheet.
 
 ```{r}
-gcred <- 'original-return-107905-8542c2ab0ad1.json'
-if(file.exists(here(gcred))){
-  gs4_auth(path=here(gcred))
+## set up google auth
+if(Sys.getenv("GOOGLE_AUTH_JSON")!=""){
+  gs4_auth(path = paste0("../",Sys.getenv("GOOGLE_AUTH_JSON")))
+} else {
+  stop("Please set up google auth json file")
 }
+
 gsheet <- 'https://docs.google.com/spreadsheets/d/1DRW5n6s6UtDAq3-kg-JTD4Yd2_24QfjAAxSU7-itkEE/edit?usp=sharing'
 sheet_item <- 'krypton-exp'
 

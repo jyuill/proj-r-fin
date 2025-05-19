@@ -4,6 +4,7 @@
 ## 2. Create auth folder in project
 ## 3. Download/save in auth/ folder
 ## 4. Create .Renviron file at project root
+##    note: can also store in auth/ folder within a folder - like for shiny project
 ## 5. Add line to .Renviron file: GOOGLE_AUTH_JSON=auth/actual-file-name.json
 ## 6. Restart RStudio to load .Renviron file
 ## 7. Note: Add .Renviron to .gitignore so it is NOT pushed up to GitHub repo

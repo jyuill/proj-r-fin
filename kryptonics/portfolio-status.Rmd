@@ -55,6 +55,8 @@ Keep track of status of krypto portfolio over time, based on transactions combin
 5. Copy/paste new transactions from activity report.
 6. Copy down formulas in spreadsheet.
 
+### Get Google sheets
+
 ```{r}
 ## set up google auth
 if(Sys.getenv("GOOGLE_AUTH_JSON")!=""){
@@ -72,6 +74,8 @@ ktrans <- ktrans[,1:7]
 ## set up table to hold latest profit data
 curr_profits <- data.frame()
 ```
+
+### Functions
 
 ```{r FUNCTIONS}
 

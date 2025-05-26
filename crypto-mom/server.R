@@ -100,6 +100,7 @@ function(input, output, session) {
     
     output$portfolioTotal <- renderDataTable({
         datatable(portfolio_ttl_return, 
+                  class = "display compact",
                   options = list(dom = 't', # table only - no search, pagination, etc.
                                  ordering = FALSE,
                                  autoWidth = TRUE),
@@ -116,6 +117,7 @@ function(input, output, session) {
                                        "amt_purch", "price_purch", 
                                        "price", 
                                        "total_value", "gain", "roi")], 
+                  class = "display hover compact",
                   options = list(dom = 't', 
                                  autoWidth = TRUE),
                   rownames = FALSE) %>%

@@ -39,7 +39,9 @@ fluidPage(
         # Show a plot of the generated distribution
         mainPanel(
             plotOutput("distPlot"),
+            h3("Portfolio Summary"),
             DTOutput("portfolioTotal"),
+            h3("Portfolio Details by Coin"),
             DTOutput("portfolioLatest"),
         )
     )

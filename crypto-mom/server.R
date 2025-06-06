@@ -98,9 +98,19 @@ port_ttl_date <- prices_long_port %>%
   ) %>%
   mutate(date = as.Date(date))
 
+# for note on latest date
+#port_latest <- max(port_ttl_date$date)
+#port_latest_note <- paste0("As of: ", format(port_latest, "%B %d, %Y"))
+
 # Define server logic ----
 function(input, output, session) {
-    # data
+  # note on latest date in data
+  output$portLatestNote <- renderText({
+    req(prices_long_port)
+    port_latest <- max(prices_long_port$date)
+    port_latest_note <- paste0("As of: ", format(port_latest, "%B %d, %Y"))
+    return(port_latest_note)
+  })
   # filter setup ####
   # coin selections
   observe({
@@ -263,7 +273,7 @@ function(input, output, session) {
             ## testing ----
             #port_ttl_date %>%
             ggplot(aes(x = date, y = total_value)) +
-            geom_line(size = 1, color=bar_colr) +
+            geom_line(size = 0.8, color=bar_colr) +
             geom_line(aes(y=total_invest), color="lightgreen", size=1.2)+
             scale_y_continuous(labels = dollar, expand = expansion(mult = c(0, 0.01))) +
             labs(x = "", y = "$", title = "Total Portfolio Value Trend") +
@@ -277,7 +287,7 @@ function(input, output, session) {
             # TESTING ----
             #prices_long_port %>%
             ggplot(aes(x = date, y = total_value)) +
-            geom_line(size = 1, color=bar_colr) +
+            geom_line(size = 0.6, color=bar_colr) +
             geom_line(aes(y = total_invest), color = "lightgreen", size=1.2) +
             facet_grid(coin~ ., scales="free_y") + 
             scale_y_continuous(labels = dollar, expand = expansion(mult = c(0, 0.01))) +

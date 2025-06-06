@@ -54,6 +54,7 @@ fluidPage(
         # Show a plot of the generated distribution
         mainPanel(width = 9,
             h3("Portfolio Summary"),
+            textOutput("portLatestNote"),
             fluidRow(
                 column(1,""),
                 column(6, plotlyOutput("portfolioLatestPlot", height=ch_h, width=ch_w)),

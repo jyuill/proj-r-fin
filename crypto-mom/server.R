@@ -218,8 +218,12 @@ function(input, output, session) {
     })
     
   # PLOTS ----
+  # SWITCH: --- 
+  # - to ggplot instead of plotly -> don't need interactivity and looks crappy on mobile
+  # - change renderPlotly to renderPlot
+  # - comment out ggplotly(p) in favour of just p
     # plot: overall port value ----
-    output$portfolioLatestPlot <- renderPlotly({
+    output$portfolioLatestPlot <- renderPlot({
         # plot latest overall portfolio value
         p <- port_long_filtered() %>% filter(metric!="ROI") %>%
             ggplot(aes(x = metric, y = value, fill=condition_clr)) +
@@ -229,10 +233,11 @@ function(input, output, session) {
             labs(x = "", y = "$") +
             theme(legend.position = "none",
                   axis.ticks.x = element_blank())
-        ggplotly(p)
+        #ggplotly(p)
+        p
     })
     # plot: overall ROI ----
-    output$portROILatestPlot <- renderPlotly({
+    output$portROILatestPlot <- renderPlot({
       # plot latest overall portfolio value
       p <- port_long_filtered() %>% filter(metric=="ROI") %>%
         ggplot(aes(x = metric, y = value, fill=condition_clr)) +
@@ -245,11 +250,12 @@ function(input, output, session) {
         labs(x = "", y = "% Return") +
         theme(legend.position = "none",
               axis.ticks.x = element_blank())
-      ggplotly(p)
+      #ggplotly(p)
+      p
     })
   
     # plot: individual coin returns ----
-    output$portCoinLatestPlot <- renderPlotly({
+    output$portCoinLatestPlot <- renderPlot({
         # plot latest individual coin returns
         p <- port_price_latest_fltr_lng() %>%
             ## TESTING ----
@@ -264,11 +270,12 @@ function(input, output, session) {
             labs(x = "", y = "$") +
             theme(legend.position = "none",
                   axis.ticks.x = element_blank())
-        ggplotly(p)
+        #ggplotly(p)
+        p
     })
   
     # plot: total value trend ----
-    output$portValueTrendPlot <- renderPlotly({
+    output$portValueTrendPlot <- renderPlot({
         # plot total value trend
         p <- port_ttl_dates() %>% 
             ## testing ----
@@ -279,10 +286,11 @@ function(input, output, session) {
             scale_y_continuous(labels = dollar, expand = expansion(mult = c(0, 0.01))) +
             labs(x = "", y = "$", title = "Total Portfolio Value Trend") +
             theme(legend.position = "bottom")
-        ggplotly(p)
+        #ggplotly(p)
+        p
     })
     # plot: ttl val trend by coin ----
-    output$portValueTrendCoinPlot <- renderPlotly({
+    output$portValueTrendCoinPlot <- renderPlot({
         # plot total value trend by coin
         p <- prices_long_port_filtered() %>%
             # TESTING ----
@@ -294,7 +302,8 @@ function(input, output, session) {
             scale_y_continuous(labels = dollar, expand = expansion(mult = c(0, 0.01))) +
             labs(x = "", y = "$", title = "Total Value Trend by Coin") +
             theme(legend.position = "bottom")
-        ggplotly(p)
+        #ggplotly(p)
+        p
     })
     # TBL: portfolio total ----
     output$portfolioTotal <- renderDataTable({

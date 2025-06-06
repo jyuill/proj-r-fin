@@ -67,17 +67,26 @@ fluidPage(
             textOutput("portLatestNote"),
             fluidRow(
                 column(1,""),
-                column(6, plotlyOutput("portfolioLatestPlot", height=ch_h, width=ch_w)),
-                column(3, plotlyOutput("portROILatestPlot", height=ch_h, width=ch_w)),
+                column(6, 
+                       #plotlyOutput("portfolioLatestPlot", height=ch_h, width=ch_w)
+                       plotOutput("portfolioLatestPlot", height=ch_h, width=ch_w)
+                       ),
+                column(3, 
+                       #plotlyOutput("portROILatestPlot", height=ch_h, width=ch_w)
+                       plotOutput("portROILatestPlot", height=ch_h, width=ch_w)
+                       ),
                 column(2,"")
             ),
             DTOutput("portfolioTotal"),
             h3("Portfolio Details by Coin"),
-            plotlyOutput("portCoinLatestPlot", height=ch_h),
+            #plotlyOutput("portCoinLatestPlot", height=ch_h),
+            plotOutput("portCoinLatestPlot", height=ch_h, width=ch_w),
             DTOutput("portfolioLatest"),
             h3("Portfolio Trends"),
-            plotlyOutput("portValueTrendPlot"),
-            plotlyOutput("portValueTrendCoinPlot", height=ch_hx),
+            #plotlyOutput("portValueTrendPlot"),
+            plotOutput("portValueTrendPlot", width=ch_w),
+            #plotlyOutput("portValueTrendCoinPlot", height=ch_hx),
+            plotOutput("portValueTrendCoinPlot", height=ch_hx, width=ch_w),
         )
     )
 )

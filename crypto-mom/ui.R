@@ -31,8 +31,10 @@ ch_w <- '90%'
 fluidPage(
 
     # Application title
-    titlePanel("Crypto Mom! Investment Portfolio Status"),
-
+    if (is.null(parseQueryString(req$QUERY_STRING)$embed)) {
+      titlePanel("Crypto Mom! Investment Portfolio Status")    
+    },
+    
     # Sidebar with a slider input for number of bins
     sidebarLayout(
         sidebarPanel(width = 3,

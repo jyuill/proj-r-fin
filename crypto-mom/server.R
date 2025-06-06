@@ -22,6 +22,7 @@ library(here)
 
 # basic settings
 theme_set(theme_bw())
+bar_colr <- "#2c3e50" # dark blue
 
 # load functions ----
 # running locally
@@ -69,6 +70,7 @@ prices_long <- prices %>%
   pivot_longer(cols = -date, names_to = "coin", values_to = "price") %>%
   mutate(date = as.Date(date))
 ### MOTHER: prices_long_port ----
+# everything flows from this in reactives
 prices_long_port <- full_join(portfolio, prices_long, by = "coin") %>%
   mutate(date = as.Date(date)) %>%
   select(coin, date_purch, amt_purch, price_purch, total_invest, date, price) %>%
@@ -76,39 +78,7 @@ prices_long_port <- full_join(portfolio, prices_long, by = "coin") %>%
          gain = total_value - total_invest,
          roi = gain / total_invest)
 prices_long_port$date_purch <- as.Date(prices_long_port$date_purch)
-### most recent prices ----
-## combine latest prices with portfolio info
-# prices_latest <- prices %>% filter(date==max(date))
-# prices_latest_long <- prices_latest %>%
-#   pivot_longer(cols = -date, names_to = "coin", values_to = "price")
 
-## calc returns ----
-### latest by coin ----
-# portfolio_latest <- full_join(portfolio, prices_latest_long, by = "coin") %>%
-#   mutate(date = as.Date(date)) %>%
-#   select(coin, symbol, date_purch, amt_purch, price_purch, total_invest, date, price) %>%
-#   mutate(total_value = price * amt_purch,
-#          gain = total_value - total_invest,
-#          roi = gain / total_invest)
-# ### summary - ttl ROI ----
-# portfolio_ttl_return <- portfolio_latest %>% group_by(date) %>%
-#   summarize(
-#     total_invest = sum(total_invest, na.rm = TRUE),
-#     total_value = sum(total_value, na.rm = TRUE),
-#     total_gain = sum(gain, na.rm = TRUE),
-#     total_roi = total_gain / total_invest
-#   ) %>%
-#   mutate(date = as.Date(date))
-# convert to long format for plotting
-# port_long <- portfolio_ttl_return %>% 
-#                 pivot_longer(cols = -date,
-#                              names_to = "metric",
-#                              values_to = "value") %>%
-#                 mutate(
-#                   metric = factor(metric, 
-#                                   levels = c("total_invest", "total_value", "total_gain", "total_roi"),
-#                                   labels = c("Invested", "Value", "Total Gain", "ROI"))
-#             )
 
 # Define server logic ----
 function(input, output, session) {
@@ -184,7 +154,7 @@ function(input, output, session) {
         # plot latest overall portfolio value
         p <- port_long_filtered() %>% filter(metric!="ROI") %>%
             ggplot(aes(x = metric, y = value)) +
-            geom_col() +
+            geom_col(fill=bar_colr) +
             scale_y_continuous(labels = dollar, expand = expansion(add = c(0, 100))) +
             labs(x = "", y = "$") +
             theme(legend.position = "none",
@@ -196,7 +166,7 @@ function(input, output, session) {
       # plot latest overall portfolio value
       p <- port_long_filtered() %>% filter(metric=="ROI") %>%
         ggplot(aes(x = metric, y = value)) +
-        geom_col() +
+        geom_col(fill=bar_colr) +
         geom_text(aes(label= scales::percent(value, accuracy = 0.1)), 
                   position = position_stack(vjust = 4), 
                   size = 6, color = "black") +

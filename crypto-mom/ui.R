@@ -29,17 +29,22 @@ fluidPage(
     # Sidebar with a slider input for number of bins
     sidebarLayout(
         sidebarPanel(
-            sliderInput("bins",
-                        "Number of bins:",
-                        min = 1,
-                        max = 50,
-                        value = 30)
+            checkboxGroupInput(inputId = "selected_coins",
+                              label = "Select Coins",
+                              choices = NULL # to be populated dynamically
+                              )
         ),
 
         # Show a plot of the generated distribution
         mainPanel(
-            plotOutput("distPlot"),
             h3("Portfolio Summary"),
+            fluidRow(
+                column(7, plotlyOutput("portfolioLatestPlot")),
+                column(3, plotlyOutput("portROILatestPlot")),
+                column(2,"")
+            ),
+            #plotlyOutput("portfolioLatestPlot"),
+            #plotlyOutput("portROILatestPlot"),
             DTOutput("portfolioTotal"),
             h3("Portfolio Details by Coin"),
             DTOutput("portfolioLatest"),

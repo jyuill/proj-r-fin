@@ -20,6 +20,9 @@ library(quantmod) ## for prices; includes zoo (which includes xts)
 library(dygraphs)
 library(here)
 
+# basic settings
+theme_set(theme_bw())
+
 # load functions ----
 # running locally
 #source(here("crypto-mom/functions.R"))
@@ -59,6 +62,17 @@ for(c in 1:nrow(portfolio)){
   }
 }
 
+## combine prices with portfolio info for each day
+prices_long <- prices %>%
+  pivot_longer(cols = -date, names_to = "coin", values_to = "price") %>%
+  mutate(date = as.Date(date))
+prices_long_port <- full_join(portfolio, prices_long, by = "coin") %>%
+  mutate(date = as.Date(date)) %>%
+  select(coin, date_purch, amt_purch, price_purch, total_invest, date, price) %>%
+  mutate(total_value = price * amt_purch,
+         gain = total_value - total_invest,
+         roi = gain / total_invest)
+
 ## combine latest prices with portfolio info
 prices_latest <- prices %>% filter(date==max(date))
 prices_latest_long <- prices_latest %>%
@@ -81,21 +95,55 @@ portfolio_ttl_return <- portfolio_latest %>% group_by(date) %>%
   ) %>%
   mutate(date = as.Date(date))
 
+port_long <- portfolio_ttl_return %>% pivot_longer(cols = -date,
+                                                   names_to = "metric",
+                                                   values_to = "value") %>%
+            mutate(
+              metric = factor(metric, 
+                              levels = c("total_invest", "total_value", "total_gain", "total_roi"),
+                              labels = c("Invested", "Value", "Total Gain", "ROI"))
+            )
+
+coin_choices <- portfolio$coin
+
 # Define server logic required to draw a histogram
 function(input, output, session) {
     # data
+  # filter setup ####
+  # coin selections
+  observe({
+    coin_choices <- unique(portfolio$coin)
+    
+    updateCheckboxGroupInput(session, 
+                        inputId = "selected_coins",
+             choices = coin_choices,
+             selected = coin_choices)
+  })
   
-    output$distPlot <- renderPlot({
-
-        # generate bins based on input$bins from ui.R
-        x    <- prices[, 2]
-        bins <- seq(min(x), max(x), length.out = input$bins + 1)
-
-        # draw the histogram with the specified number of bins
-        hist(x, breaks = bins, col = 'darkgray', border = 'white',
-             xlab = 'Price distribution',
-             main = 'Prices')
-
+    output$portfolioLatestPlot <- renderPlotly({
+        # plot latest overall portfolio value
+        p <- port_long %>% filter(metric!="ROI") %>%
+            ggplot(aes(x = metric, y = value)) +
+            geom_col() +
+            scale_y_continuous(labels = dollar, expand = expansion(add = c(0, 100))) +
+            labs(x = "", y = "$") +
+            theme(legend.position = "none",
+                  axis.ticks.x = element_blank())
+        ggplotly(p)
+    })
+    output$portROILatestPlot <- renderPlotly({
+      # plot latest overall portfolio value
+      p <- port_long %>% filter(metric=="ROI") %>%
+        ggplot(aes(x = metric, y = value)) +
+        geom_col() +
+        geom_text(aes(label= scales::percent(value, accuracy = 0.1)), 
+                  position = position_stack(vjust = 4), 
+                  size = 6, color = "black") +
+        scale_y_continuous(labels = label_percent(), expand = expansion(add = c(0, 1))) +
+        labs(x = "", y = "% Return") +
+        theme(legend.position = "none",
+              axis.ticks.x = element_blank())
+      ggplotly(p)
     })
     
     output$portfolioTotal <- renderDataTable({

@@ -32,11 +32,26 @@ source("functions.R")
 # Get data ----
 ## portfolio info ----
 ## set up google auth
-if(Sys.getenv("GOOGLE_AUTH_JSON")!=""){
-  gs4_auth(path = Sys.getenv("GOOGLE_AUTH_JSON"))
+# old way where Sys.getenv environment variable is just path to the json file
+# if(Sys.getenv("GOOGLE_AUTH_JSON")!=""){
+#   gs4_auth(path = Sys.getenv("GOOGLE_AUTH_JSON"))
+# } else {
+#   stop("Please set up google auth json file")
+# }
+# new way for Posit Connect cloud
+library(googlesheets4)
+library(openssl)
+
+json_base64 <- Sys.getenv("GOOGLE_AUTH_JSON")
+if (nzchar(json_base64)) {
+  json_raw <- base64_decode(json_base64)
+  temp_json <- tempfile(fileext = ".json")
+  writeBin(json_raw, temp_json)
+  gs4_auth(path = temp_json)
 } else {
-  stop("Please set up google auth json file")
+  stop("Missing GSA_JSON_BASE64 environment variable")
 }
+
 
 gsheet <- 'https://docs.google.com/spreadsheets/d/1DRW5n6s6UtDAq3-kg-JTD4Yd2_24QfjAAxSU7-itkEE/edit?usp=sharing'
 sheet_item <- 'crypto-mom'

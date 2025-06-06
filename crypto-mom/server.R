@@ -22,8 +22,8 @@ bar_colr <- "#2c3e50" # dark blue
 
 # load functions ----
 # running locally
-#source(here("crypto-mom/functions.R"))
-source("functions.R")
+source(here("crypto-mom/functions.R"))
+#source("functions.R")
 
 # Get data ----
 ## portfolio info ----
@@ -52,7 +52,7 @@ sheet_item <- 'crypto-mom'
 portfolio <- read_sheet(ss=gsheet, sheet=sheet_item, skip=2)
 
 ## get prices ----
-## get latest prices - convert to Cdn$ if nec
+## get latest prices - cycle thru each coin in portfolio list
 prices <- data.frame()
 for(c in 1:nrow(portfolio)){
   # in testing, needed to reload function each time -> hopefully not in prod
@@ -87,6 +87,16 @@ prices_long_port <- full_join(portfolio, prices_long, by = "coin") %>%
          roi = gain / total_invest)
 prices_long_port$date_purch <- as.Date(prices_long_port$date_purch)
 
+# summary data for testing - all coins
+port_ttl_date <- prices_long_port %>%
+  group_by(date) %>%
+  summarize(
+    total_invest = sum(total_invest, na.rm = TRUE),
+    total_value = sum(total_value, na.rm = TRUE),
+    total_gain = sum(gain, na.rm = TRUE),
+    total_roi = total_gain / total_invest
+  ) %>%
+  mutate(date = as.Date(date))
 
 # Define server logic ----
 function(input, output, session) {
@@ -115,7 +125,7 @@ function(input, output, session) {
   
   # end filter setup ----
   # reactives for filtering ----
-  ## prices_long_port is combined source of all data ----
+  ## MAIN: prices_long_port_filtered is combined source of all data ----
   prices_long_port_filtered <- reactive({
         req(input$selected_coins)
         req(input$date_range)
@@ -123,15 +133,29 @@ function(input, output, session) {
                                     date >= input$date_range[1],
                                     date <= input$date_range[2])
     })
+  
   ## various reactives - derived from above for particular purposes
-  ## prep - total tbls ----
-  ## prep: latest date - all coins ----
+  ## prep: port_ttl_dates ----
+  port_ttl_dates <- reactive({
+        req(prices_long_port_filtered())
+        prices_long_port_filtered() %>%
+            # groups all coins by date for total
+            group_by(date) %>%
+            summarize(
+                total_invest = sum(total_invest, na.rm = TRUE),
+                total_value = sum(total_value, na.rm = TRUE),
+                total_gain = sum(gain, na.rm = TRUE),
+                total_roi = total_gain / total_invest
+            ) %>%
+            mutate(date = as.Date(date))
+    })
+  ## prep: port_price_latest_filtered ----
   port_price_latest_filtered <- reactive({
         req(prices_long_port_filtered())
         prices_long_port_filtered() %>%
             filter(date == max(date)) 
     })
-  ## prep: latest date long - all coins ----
+  ## prep: port_price_latest_fltr_lng ----
   port_price_latest_fltr_lng <- reactive({
   port_price_latest_filtered() %>%
     ### TEST ----
@@ -150,7 +174,7 @@ function(input, output, session) {
     )
   })
   
-  ## prep: ttl portfolio return ----
+  ## prep: portfolio_ttl_return_filtered ----
   portfolio_ttl_return_filtered <- reactive({
         req(port_price_latest_filtered())
         port_price_latest_filtered() %>%
@@ -164,7 +188,7 @@ function(input, output, session) {
             ) %>%
             mutate(date = as.Date(date))
     })
-    ## prep: ttl port long charts ----
+    ## prep: port_long_filtered ----
     port_long_filtered <- reactive({
         req(portfolio_ttl_return_filtered())
         portfolio_ttl_return_filtered() %>% 
@@ -229,6 +253,36 @@ function(input, output, session) {
             labs(x = "", y = "$") +
             theme(legend.position = "none",
                   axis.ticks.x = element_blank())
+        ggplotly(p)
+    })
+  
+    # plot: total value trend ----
+    output$portValueTrendPlot <- renderPlotly({
+        # plot total value trend
+        p <- port_ttl_dates() %>% 
+            ## testing ----
+            #port_ttl_date %>%
+            ggplot(aes(x = date, y = total_value)) +
+            geom_line(size = 1, color=bar_colr) +
+            geom_line(aes(y=total_invest), color="lightgreen", size=1.2)+
+            scale_y_continuous(labels = dollar, expand = expansion(mult = c(0, 0.01))) +
+            labs(x = "", y = "$", title = "Total Portfolio Value Trend") +
+            theme(legend.position = "bottom")
+        ggplotly(p)
+    })
+    # plot: ttl val trend by coin ----
+    output$portValueTrendCoinPlot <- renderPlotly({
+        # plot total value trend by coin
+        p <- prices_long_port_filtered() %>%
+            # TESTING ----
+            #prices_long_port %>%
+            ggplot(aes(x = date, y = total_value)) +
+            geom_line(size = 1, color=bar_colr) +
+            geom_line(aes(y = total_invest), color = "lightgreen", size=1.2) +
+            facet_grid(coin~ ., scales="free_y") + 
+            scale_y_continuous(labels = dollar, expand = expansion(mult = c(0, 0.01))) +
+            labs(x = "", y = "$", title = "Total Value Trend by Coin") +
+            theme(legend.position = "bottom")
         ggplotly(p)
     })
     # TBL: portfolio total ----

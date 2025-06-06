@@ -24,13 +24,14 @@ library(shinythemes)
 options(scipen = 10)
 # chart size
 ch_h <- '200px'
+ch_hx <- '800px'
 ch_w <- '90%'
 
 # Define UI for application that draws a histogram
 fluidPage(
 
     # Application title
-    titlePanel("Crypto Portfolio Status"),
+    titlePanel("Crypto Mom! Investment Portfolio Status"),
 
     # Sidebar with a slider input for number of bins
     sidebarLayout(
@@ -63,6 +64,9 @@ fluidPage(
             h3("Portfolio Details by Coin"),
             plotlyOutput("portCoinLatestPlot", height=ch_h),
             DTOutput("portfolioLatest"),
+            h3("Portfolio Trends"),
+            plotlyOutput("portValueTrendPlot"),
+            plotlyOutput("portValueTrendCoinPlot", height=ch_hx),
         )
     )
 )

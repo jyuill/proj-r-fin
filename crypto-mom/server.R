@@ -14,6 +14,7 @@ library(quantmod) ## for prices; includes zoo (which includes xts)
 library(dygraphs)
 library(here)
 library(openssl) # possibly needed for decoding base64 encoded json file
+library(bslib)
 
 # basic settings
 theme_set(theme_bw())

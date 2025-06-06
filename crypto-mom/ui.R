@@ -15,6 +15,7 @@ library(googlesheets4)
 library(quantmod) ## for prices; includes zoo (which includes xts)
 library(dygraphs)
 library(shinythemes)
+library(bslib)
 
 # settings
 options(scipen = 10)
@@ -30,15 +31,21 @@ ui <- function(request) {
   query <- parseQueryString(request$QUERY_STRING)
   
 fluidPage(
-
+    # Application theme
+    theme = bs_theme(version = 5, 
+                     bootswatch = "sandstone"),
+    tags$head(
+      tags$link(rel= "stylesheet", type = "text/css", href = "styles.css")
+      ),
+    # Set the favicon)
     # Application title - doesn't show when embedded in website
     if (is.null(query$embed)) {
       titlePanel("Crypto Mom! Investment Portfolio Status")    
-    } ,
+    },
     
     # Sidebar with a slider input for number of bins
     sidebarLayout(
-        sidebarPanel(width = 3,
+        sidebarPanel(width = 3, class = "sidebar",
             checkboxGroupInput(inputId = "selected_coins",
                               label = "Select Coins",
                               choices = NULL # to be populated dynamically

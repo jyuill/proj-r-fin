@@ -1,0 +1,17 @@
+/* styles for crypto mom shiny app */
+html, body, .container-fluid {
+  height: 100%;
+  margin: 6px;
+  padding: 0;
+}
+
+.sidebar, .well {
+  height: 100vh;
+  min-height: 100vh;
+  overflow-y: auto;
+}
+
+.main-panel {
+  height: 100vh;
+  overflow-y: auto;
+}

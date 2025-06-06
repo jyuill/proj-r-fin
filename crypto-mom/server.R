@@ -19,6 +19,7 @@ library(googlesheets4)
 library(quantmod) ## for prices; includes zoo (which includes xts)
 library(dygraphs)
 library(here)
+library(openssl) # possibly needed for decoding base64 encoded json file
 
 # basic settings
 theme_set(theme_bw())
@@ -39,9 +40,6 @@ source("functions.R")
 #   stop("Please set up google auth json file")
 # }
 # new way for Posit Connect cloud
-library(googlesheets4)
-library(openssl)
-
 json_base64 <- Sys.getenv("GOOGLE_AUTH_JSON")
 if (nzchar(json_base64)) {
   json_raw <- base64_decode(json_base64)
@@ -49,7 +47,7 @@ if (nzchar(json_base64)) {
   writeBin(json_raw, temp_json)
   gs4_auth(path = temp_json)
 } else {
-  stop("Missing GSA_JSON_BASE64 environment variable")
+  stop("Missing GOOGLE_AUTH_JSON environment variable")
 }
 
 

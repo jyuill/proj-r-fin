@@ -1,11 +1,5 @@
 #
-# This is the server logic of a Shiny web application. You can run the
-# application by clicking 'Run App' above.
-#
-# Find out more about building applications with Shiny here:
-#
-#    https://shiny.posit.co/
-#
+# CRYPTO-MOM: This is the server logic of a Shiny web application.
 
 library(shiny)
 library(tidyverse)
@@ -24,6 +18,7 @@ library(openssl) # possibly needed for decoding base64 encoded json file
 # basic settings
 theme_set(theme_bw())
 bar_colr <- "#2c3e50" # dark blue
+#bar_colr <- "blue"
 
 # load functions ----
 # running locally
@@ -130,15 +125,36 @@ function(input, output, session) {
     })
   ## various reactives - derived from above for particular purposes
   ## prep - total tbls ----
+  ## prep: latest date - all coins ----
   port_price_latest_filtered <- reactive({
         req(prices_long_port_filtered())
         prices_long_port_filtered() %>%
             filter(date == max(date)) 
     })
-    ## prep: ttl portfolio return ----
+  ## prep: latest date long - all coins ----
+  port_price_latest_fltr_lng <- reactive({
+  port_price_latest_filtered() %>%
+    ### TEST ----
+    #port_price_latest_lng_test <- port_price_latest_test %>%
+    select(date, coin, total_invest, total_value, gain, roi) %>%
+    pivot_longer(cols = c(total_invest, total_value, gain, roi),
+                 names_to = "metric",
+                 values_to = "value") %>%
+    mutate(
+      metric = factor(metric, 
+                      levels = c("total_invest", "total_value", "gain", "roi"),
+                      labels = c("Invested", "Value", "Gain", "ROI"))
+    ) %>% mutate(
+      condition_clr = ifelse(metric %in% c("Gain","ROI") & value>0, "green",
+                             ifelse(metric %in% c("Gain","ROI") & value<0, "red", bar_colr))
+    )
+  })
+  
+  ## prep: ttl portfolio return ----
   portfolio_ttl_return_filtered <- reactive({
         req(port_price_latest_filtered())
         port_price_latest_filtered() %>%
+          # groups all coins by date for total
             group_by(date) %>%
             summarize(
                 total_invest = sum(total_invest, na.rm = TRUE),
@@ -148,7 +164,7 @@ function(input, output, session) {
             ) %>%
             mutate(date = as.Date(date))
     })
-    ## prep: ttl portfolio charts ----
+    ## prep: ttl port long charts ----
     port_long_filtered <- reactive({
         req(portfolio_ttl_return_filtered())
         portfolio_ttl_return_filtered() %>% 
@@ -160,26 +176,33 @@ function(input, output, session) {
                 metric = factor(metric, 
                                 levels = c("total_invest", "total_value", "total_gain", "total_roi"),
                                 labels = c("Invested", "Value", "Total Gain", "ROI"))
+            ) %>% mutate(
+              condition_clr = ifelse(metric %in% c("Total Gain","ROI") & value>0, "green",
+                                     ifelse(metric %in% c("Total Gain","ROI") & value<0, "red", bar_colr))
             )
     })
+    
+  # PLOTS ----
     # plot: overall port value ----
     output$portfolioLatestPlot <- renderPlotly({
         # plot latest overall portfolio value
         p <- port_long_filtered() %>% filter(metric!="ROI") %>%
-            ggplot(aes(x = metric, y = value)) +
-            geom_col(fill=bar_colr) +
+            ggplot(aes(x = metric, y = value, fill=condition_clr)) +
+            geom_col() +
+            scale_fill_identity() + # for conditional colors
             scale_y_continuous(labels = dollar, expand = expansion(add = c(0, 100))) +
             labs(x = "", y = "$") +
             theme(legend.position = "none",
                   axis.ticks.x = element_blank())
         ggplotly(p)
     })
-    # plot: overal ROI ----
+    # plot: overall ROI ----
     output$portROILatestPlot <- renderPlotly({
       # plot latest overall portfolio value
       p <- port_long_filtered() %>% filter(metric=="ROI") %>%
-        ggplot(aes(x = metric, y = value)) +
-        geom_col(fill=bar_colr) +
+        ggplot(aes(x = metric, y = value, fill=condition_clr)) +
+        geom_col() +
+        scale_fill_identity() + # for conditional colors
         geom_text(aes(label= scales::percent(value, accuracy = 0.1)), 
                   position = position_stack(vjust = 4), 
                   size = 6, color = "black") +
@@ -189,7 +212,26 @@ function(input, output, session) {
               axis.ticks.x = element_blank())
       ggplotly(p)
     })
-    
+  
+    # plot: individual coin returns ----
+    output$portCoinLatestPlot <- renderPlotly({
+        # plot latest individual coin returns
+        p <- port_price_latest_fltr_lng() %>%
+            ## TESTING ----
+            #port_price_latest_lng_test %>%
+            filter(metric != "ROI") %>%
+            ggplot(aes(x = metric, y = value, fill=condition_clr)) +
+            geom_col() +
+            scale_fill_identity() + # for conditional colors
+            facet_grid(.~coin) +
+            geom_hline(yintercept = 0, linetype = "solid", color = "black") +
+            scale_y_continuous(labels = dollar, expand = expansion(add = c(0, 100))) +
+            labs(x = "", y = "$") +
+            theme(legend.position = "none",
+                  axis.ticks.x = element_blank())
+        ggplotly(p)
+    })
+    # TBL: portfolio total ----
     output$portfolioTotal <- renderDataTable({
         datatable(portfolio_ttl_return_filtered(), 
                   class = "display compact",
@@ -203,7 +245,7 @@ function(input, output, session) {
         formatCurrency("total_gain", "$", digits = 0) %>%
         formatPercentage("total_roi", digits = 1)
     })
-    
+    # TBL: coin returns ----
     output$portfolioLatest <- renderDataTable({
         datatable(port_price_latest_filtered()[, c("coin", 
                                        "date_purch", "amt_purch", "price_purch", 

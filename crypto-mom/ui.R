@@ -20,6 +20,12 @@ library(quantmod) ## for prices; includes zoo (which includes xts)
 library(dygraphs)
 library(shinythemes)
 
+# settings
+options(scipen = 10)
+# chart size
+ch_h <- '200px'
+ch_w <- '90%'
+
 # Define UI for application that draws a histogram
 fluidPage(
 
@@ -28,7 +34,7 @@ fluidPage(
 
     # Sidebar with a slider input for number of bins
     sidebarLayout(
-        sidebarPanel(
+        sidebarPanel(width = 3,
             checkboxGroupInput(inputId = "selected_coins",
                               label = "Select Coins",
                               choices = NULL # to be populated dynamically
@@ -45,17 +51,17 @@ fluidPage(
         ),
 
         # Show a plot of the generated distribution
-        mainPanel(
+        mainPanel(width = 9,
             h3("Portfolio Summary"),
             fluidRow(
-                column(7, plotlyOutput("portfolioLatestPlot")),
-                column(3, plotlyOutput("portROILatestPlot")),
+                column(1,""),
+                column(6, plotlyOutput("portfolioLatestPlot", height=ch_h, width=ch_w)),
+                column(3, plotlyOutput("portROILatestPlot", height=ch_h, width=ch_w)),
                 column(2,"")
             ),
-            #plotlyOutput("portfolioLatestPlot"),
-            #plotlyOutput("portROILatestPlot"),
             DTOutput("portfolioTotal"),
             h3("Portfolio Details by Coin"),
+            plotlyOutput("portCoinLatestPlot", height=ch_h),
             DTOutput("portfolioLatest"),
         )
     )

@@ -1,11 +1,7 @@
 #
+# Crypto Mom 
 # This is the user-interface definition of a Shiny web application. You can
 # run the application by clicking 'Run App' above.
-#
-# Find out more about building applications with Shiny here:
-#
-#    https://shiny.posit.co/
-#
 
 library(shiny)
 library(tidyverse)
@@ -27,13 +23,18 @@ ch_h <- '200px'
 ch_hx <- '800px'
 ch_w <- '90%'
 
-# Define UI for application that draws a histogram
+# Define UI for application
+# wrapping in function(request) at suggestion of chatGPT to control titlePanel when embedding in website
+ui <- function(request) {
+  # used to determine if app is embedded in website or not (when paired with url/?embed=true)
+  query <- parseQueryString(request$QUERY_STRING)
+  
 fluidPage(
 
-    # Application title
-    if (is.null(parseQueryString(req$QUERY_STRING)$embed)) {
+    # Application title - doesn't show when embedded in website
+    if (is.null(query$embed)) {
       titlePanel("Crypto Mom! Investment Portfolio Status")    
-    },
+    } ,
     
     # Sidebar with a slider input for number of bins
     sidebarLayout(
@@ -73,3 +74,4 @@ fluidPage(
         )
     )
 )
+} # end opening request function

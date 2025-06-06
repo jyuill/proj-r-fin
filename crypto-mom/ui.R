@@ -32,7 +32,16 @@ fluidPage(
             checkboxGroupInput(inputId = "selected_coins",
                               label = "Select Coins",
                               choices = NULL # to be populated dynamically
-                              )
+                              ),
+            dateRangeInput(
+              inputId = "date_range",
+              label = "Select Date Range:",
+              #start = 2021-12-05,  # or set to min(prices$date)
+              #end = Sys.Date(),         # or max(prices$date)
+              start = NULL, # to be set dynamically
+              end = NULL, # to be set dynamically
+              format = "yyyy-mm-dd"
+            )
         ),
 
         # Show a plot of the generated distribution

@@ -62,67 +62,127 @@ for(c in 1:nrow(portfolio)){
   }
 }
 
+### merge with portfolio ----
+### daily historical ----
 ## combine prices with portfolio info for each day
 prices_long <- prices %>%
   pivot_longer(cols = -date, names_to = "coin", values_to = "price") %>%
   mutate(date = as.Date(date))
+### MOTHER: prices_long_port ----
 prices_long_port <- full_join(portfolio, prices_long, by = "coin") %>%
   mutate(date = as.Date(date)) %>%
   select(coin, date_purch, amt_purch, price_purch, total_invest, date, price) %>%
   mutate(total_value = price * amt_purch,
          gain = total_value - total_invest,
          roi = gain / total_invest)
-
+prices_long_port$date_purch <- as.Date(prices_long_port$date_purch)
+### most recent prices ----
 ## combine latest prices with portfolio info
-prices_latest <- prices %>% filter(date==max(date))
-prices_latest_long <- prices_latest %>%
-  pivot_longer(cols = -date, names_to = "coin", values_to = "price")
+# prices_latest <- prices %>% filter(date==max(date))
+# prices_latest_long <- prices_latest %>%
+#   pivot_longer(cols = -date, names_to = "coin", values_to = "price")
 
-# calculate returns
-portfolio_latest <- full_join(portfolio, prices_latest_long, by = "coin") %>%
-  mutate(date = as.Date(date)) %>%
-  select(coin, symbol, date_purch, amt_purch, price_purch, total_invest, date, price) %>%
-  mutate(total_value = price * amt_purch,
-         gain = total_value - total_invest,
-         roi = gain / total_invest)
-# calc summary of total returns
-portfolio_ttl_return <- portfolio_latest %>% group_by(date) %>%
-  summarize(
-    total_invest = sum(total_invest, na.rm = TRUE),
-    total_value = sum(total_value, na.rm = TRUE),
-    total_gain = sum(gain, na.rm = TRUE),
-    total_roi = total_gain / total_invest
-  ) %>%
-  mutate(date = as.Date(date))
+## calc returns ----
+### latest by coin ----
+# portfolio_latest <- full_join(portfolio, prices_latest_long, by = "coin") %>%
+#   mutate(date = as.Date(date)) %>%
+#   select(coin, symbol, date_purch, amt_purch, price_purch, total_invest, date, price) %>%
+#   mutate(total_value = price * amt_purch,
+#          gain = total_value - total_invest,
+#          roi = gain / total_invest)
+# ### summary - ttl ROI ----
+# portfolio_ttl_return <- portfolio_latest %>% group_by(date) %>%
+#   summarize(
+#     total_invest = sum(total_invest, na.rm = TRUE),
+#     total_value = sum(total_value, na.rm = TRUE),
+#     total_gain = sum(gain, na.rm = TRUE),
+#     total_roi = total_gain / total_invest
+#   ) %>%
+#   mutate(date = as.Date(date))
+# convert to long format for plotting
+# port_long <- portfolio_ttl_return %>% 
+#                 pivot_longer(cols = -date,
+#                              names_to = "metric",
+#                              values_to = "value") %>%
+#                 mutate(
+#                   metric = factor(metric, 
+#                                   levels = c("total_invest", "total_value", "total_gain", "total_roi"),
+#                                   labels = c("Invested", "Value", "Total Gain", "ROI"))
+#             )
 
-port_long <- portfolio_ttl_return %>% pivot_longer(cols = -date,
-                                                   names_to = "metric",
-                                                   values_to = "value") %>%
-            mutate(
-              metric = factor(metric, 
-                              levels = c("total_invest", "total_value", "total_gain", "total_roi"),
-                              labels = c("Invested", "Value", "Total Gain", "ROI"))
-            )
-
-coin_choices <- portfolio$coin
-
-# Define server logic required to draw a histogram
+# Define server logic ----
 function(input, output, session) {
     # data
   # filter setup ####
   # coin selections
   observe({
+    req(portfolio)
     coin_choices <- unique(portfolio$coin)
-    
     updateCheckboxGroupInput(session, 
                         inputId = "selected_coins",
              choices = coin_choices,
              selected = coin_choices)
   })
+  # date range - based on dates available in data
+  observe({
+    req(prices)
+    # update date range input with min and max dates from portfolio   
+    updateDateRangeInput(
+      session,
+      inputId = "date_range",
+      start = min(prices$date),
+      end = max(prices$date)
+    )
+  })
   
+  # end filter setup ----
+  # reactives for filtering ----
+  ## prices_long_port is combined source of all data ----
+  prices_long_port_filtered <- reactive({
+        req(input$selected_coins)
+        req(input$date_range)
+        prices_long_port %>% filter(coin %in% input$selected_coins,
+                                    date >= input$date_range[1],
+                                    date <= input$date_range[2])
+    })
+  ## various reactives - derived from above for particular purposes
+  ## prep - total tbls ----
+  port_price_latest_filtered <- reactive({
+        req(prices_long_port_filtered())
+        prices_long_port_filtered() %>%
+            filter(date == max(date)) 
+    })
+    ## prep: ttl portfolio return ----
+  portfolio_ttl_return_filtered <- reactive({
+        req(port_price_latest_filtered())
+        port_price_latest_filtered() %>%
+            group_by(date) %>%
+            summarize(
+                total_invest = sum(total_invest, na.rm = TRUE),
+                total_value = sum(total_value, na.rm = TRUE),
+                total_gain = sum(gain, na.rm = TRUE),
+                total_roi = total_gain / total_invest
+            ) %>%
+            mutate(date = as.Date(date))
+    })
+    ## prep: ttl portfolio charts ----
+    port_long_filtered <- reactive({
+        req(portfolio_ttl_return_filtered())
+        portfolio_ttl_return_filtered() %>% 
+            mutate(date = as.Date(date)) %>%
+            pivot_longer(cols = -date,
+                         names_to = "metric",
+                         values_to = "value") %>%
+            mutate(
+                metric = factor(metric, 
+                                levels = c("total_invest", "total_value", "total_gain", "total_roi"),
+                                labels = c("Invested", "Value", "Total Gain", "ROI"))
+            )
+    })
+    # plot: overall port value ----
     output$portfolioLatestPlot <- renderPlotly({
         # plot latest overall portfolio value
-        p <- port_long %>% filter(metric!="ROI") %>%
+        p <- port_long_filtered() %>% filter(metric!="ROI") %>%
             ggplot(aes(x = metric, y = value)) +
             geom_col() +
             scale_y_continuous(labels = dollar, expand = expansion(add = c(0, 100))) +
@@ -131,9 +191,10 @@ function(input, output, session) {
                   axis.ticks.x = element_blank())
         ggplotly(p)
     })
+    # plot: overal ROI ----
     output$portROILatestPlot <- renderPlotly({
       # plot latest overall portfolio value
-      p <- port_long %>% filter(metric=="ROI") %>%
+      p <- port_long_filtered() %>% filter(metric=="ROI") %>%
         ggplot(aes(x = metric, y = value)) +
         geom_col() +
         geom_text(aes(label= scales::percent(value, accuracy = 0.1)), 
@@ -147,7 +208,7 @@ function(input, output, session) {
     })
     
     output$portfolioTotal <- renderDataTable({
-        datatable(portfolio_ttl_return, 
+        datatable(portfolio_ttl_return_filtered(), 
                   class = "display compact",
                   options = list(dom = 't', # table only - no search, pagination, etc.
                                  ordering = FALSE,
@@ -161,8 +222,8 @@ function(input, output, session) {
     })
     
     output$portfolioLatest <- renderDataTable({
-        datatable(portfolio_latest[, c("coin", 
-                                       "amt_purch", "price_purch", 
+        datatable(port_price_latest_filtered()[, c("coin", 
+                                       "date_purch", "amt_purch", "price_purch", 
                                        "price", 
                                        "total_value", "gain", "roi")], 
                   class = "display hover compact",

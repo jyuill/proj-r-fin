@@ -47,7 +47,7 @@ if (nzchar(json_base64)) {
 }
 
 
-gsheet <- 'https://docs.google.com/spreadsheets/d/1DRW5n6s6UtDAq3-kg-JTD4Yd2_24QfjAAxSU7-itkEE/edit?usp=sharing'
+gsheet <- 'https://docs.google.com/spreadsheets/d/1uUdaxwoVz8_eC6lAnVLfU13emcbewWg3PpCVk80JnvM/edit?usp=sharing'
 sheet_item <- 'crypto-mom'
 
 portfolio <- read_sheet(ss=gsheet, sheet=sheet_item, skip=2)
@@ -293,7 +293,7 @@ function(input, output, session) {
     output$portValueTrendCoinPlot <- renderPlot({
         # plot total value trend by coin
         p <- prices_long_port_filtered() %>%
-            # TESTING ----
+            ## TESTING ----
             #prices_long_port %>%
             ggplot(aes(x = date, y = total_value)) +
             geom_line(size = 0.6, color=bar_colr) +
@@ -305,6 +305,32 @@ function(input, output, session) {
         #ggplotly(p)
         p
     })
+    # plot: distrib by coin with boxplot ----
+  output$portPriceDistCoinBoxPlot <- renderPlot({
+    # plot total value trend by coin with boxplot
+    p <- prices_long_port_filtered() %>%
+      ## TESTING ----
+      #p <- prices_long_port %>% 
+              group_by(coin) %>% mutate(
+                price_z = scale(price),
+                price_norm = price/first(price),
+                price_scaled = (price-min(price)) / (max(price) - min(price)),
+                log_return = log(price,lag(price, order_by = date))
+              )
+    plot <- p %>%
+      ggplot(aes(x = coin, y = price_norm)) +
+      geom_boxplot(fill=bar_colr, outlier.size = 0.5) +
+      geom_hline(yintercept = 1, linetype = "solid", color = "green") +
+      scale_y_continuous(labels = comma_format(), expand = expansion(mult = c(0, 0.01))) +
+      labs(x = "", 
+           y = "Relative Price (initial price = 1)",
+           title = "Distribution of Price Relative to Initial Price (Normalized)") +
+      theme(legend.position = "bottom",
+            axis.ticks.x = element_blank())
+  
+    #ggplotly(plot)
+    plot
+  })
     # TBL: portfolio total ----
     output$portfolioTotal <- renderDataTable({
         datatable(portfolio_ttl_return_filtered(), 
@@ -317,7 +343,12 @@ function(input, output, session) {
         formatCurrency("total_invest", "$", digits = 0) %>%
         formatCurrency("total_value", "$", digits = 0) %>%
         formatCurrency("total_gain", "$", digits = 0) %>%
-        formatPercentage("total_roi", digits = 1)
+        formatPercentage("total_roi", digits = 1) %>% 
+        formatStyle(
+            columns = c("total_gain", "total_roi"),
+            backgroundColor = styleInterval(0, c("red", "green")),
+            color = "white"
+        )
     })
     # TBL: coin returns ----
     output$portfolioLatest <- renderDataTable({
@@ -334,7 +365,12 @@ function(input, output, session) {
         formatCurrency("price", "$", digits = 0) %>%
         formatCurrency("total_value", "$", digits = 0) %>%
         formatCurrency("gain", "$", digits = 0) %>%
-        formatPercentage("roi", digits = 1)
+        formatPercentage("roi", digits = 1) %>%
+        formatStyle(
+          columns = c("gain", "roi"),
+          backgroundColor = styleInterval(0, c("red", "green")),
+          color = "white"
+        )
     })
 
 }

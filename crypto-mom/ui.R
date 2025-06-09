@@ -21,6 +21,7 @@ library(bslib)
 options(scipen = 10)
 # chart size
 ch_h <- '200px'
+ch_hm <- '300px'
 ch_hx <- '800px'
 ch_w <- '90%'
 
@@ -45,7 +46,7 @@ fluidPage(
     
     # Sidebar with a slider input for number of bins
     sidebarLayout(
-        sidebarPanel(width = 3, class = "sidebar",
+        sidebarPanel(width = 3, class = "sidebar", # sidebar panel ----
             checkboxGroupInput(inputId = "selected_coins",
                               label = "Select Coins",
                               choices = NULL # to be populated dynamically
@@ -61,9 +62,9 @@ fluidPage(
             )
         ),
 
-        # Show a plot of the generated distribution
+        # main panel ----
         mainPanel(width = 9,
-            h3("Portfolio Summary"),
+            h3("Portfolio Summary"), ## summary ----
             textOutput("portLatestNote"),
             fluidRow(
                 column(1,""),
@@ -78,16 +79,18 @@ fluidPage(
                 column(2,"")
             ),
             DTOutput("portfolioTotal"),
-            h3("Portfolio Details by Coin"),
+            h3("Portfolio Details by Coin"), ## coin details ----
             #plotlyOutput("portCoinLatestPlot", height=ch_h),
             plotOutput("portCoinLatestPlot", height=ch_h, width=ch_w),
             DTOutput("portfolioLatest"),
-            h3("Portfolio Trends"),
+            h3("Portfolio Trends"), ## trends ----
             #plotlyOutput("portValueTrendPlot"),
             plotOutput("portValueTrendPlot", width=ch_w),
             #plotlyOutput("portValueTrendCoinPlot", height=ch_hx),
             plotOutput("portValueTrendCoinPlot", height=ch_hx, width=ch_w),
-        )
-    )
+            h3("Relative Price Distributions"), ## relative price distributions ----
+            plotOutput("portPriceDistCoinBoxPlot", height=ch_h, width=ch_w),
+        ) # end main panel ----
+    ) # end sidebarLayout ----
 )
 } # end opening request function

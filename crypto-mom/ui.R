@@ -64,7 +64,7 @@ fluidPage(
             p(class="sider", "A basic dashboard for tracking status of a simple cryptocurrency portfolio. 
               For reference in considering future trades. "),
             p(class="sider", strong("'Price'"),"references closing price each day, or latest price for current day. 
-              Updated each time the app is loaded."),
+              Updated when app is loaded."),
             h4("sources:"),
             tags$ul(class="sider",
               tags$li("Portfolio data imported from a Google Sheet"),

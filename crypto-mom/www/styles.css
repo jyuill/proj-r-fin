@@ -5,6 +5,7 @@ html, body, .container-fluid {
   padding: 0;
 }
 
+
 .sidebar, .well {
   height: 100vh;
   min-height: 100vh;
@@ -14,4 +15,16 @@ html, body, .container-fluid {
 .main-panel {
   height: 100vh;
   overflow-y: auto;
+}
+
+/* styles for sidebar panel */
+h4 {
+  font-size: 1.1rem;
+  font-weight: bold;
+  color: #333;
+}
+.sider {
+  font-size: 0.8rem;
+  line-height: 1;
+  color: #333;  
 }

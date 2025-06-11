@@ -74,11 +74,12 @@ for(c in 1:nrow(portfolio)){
 
 ### merge with portfolio ----
 ### daily historical ----
-## combine prices with portfolio info for each day
+## pivot long for coins all in one column
 prices_long <- prices %>%
   pivot_longer(cols = -date, names_to = "coin", values_to = "price") %>%
   mutate(date = as.Date(date))
 ### MOTHER: prices_long_port ----
+# join price data with portfolio data
 # everything flows from this in reactives
 prices_long_port <- full_join(portfolio, prices_long, by = "coin") %>%
   mutate(date = as.Date(date)) %>%
@@ -88,7 +89,17 @@ prices_long_port <- full_join(portfolio, prices_long, by = "coin") %>%
          roi = gain / total_invest)
 prices_long_port$date_purch <- as.Date(prices_long_port$date_purch)
 
-# summary data for testing - all coins
+### TEST data ----
+# testing: latest date
+port_price_latest_test <- prices_long_port %>%
+  filter(date == max(date)) %>%
+  select(coin, date_purch, amt_purch, price_purch, total_invest, date, price, total_value, gain, roi) %>%
+  mutate(
+    condition_clr = ifelse(gain > 0, "green", "red"),
+    bar_colr = bar_colr
+  )
+
+# summary data for testing - all coins combined
 port_ttl_date <- prices_long_port %>%
   group_by(date) %>%
   summarize(
@@ -99,9 +110,21 @@ port_ttl_date <- prices_long_port %>%
   ) %>%
   mutate(date = as.Date(date))
 
-# for note on latest date
-#port_latest <- max(port_ttl_date$date)
-#port_latest_note <- paste0("As of: ", format(port_latest, "%B %d, %Y"))
+# test: calculate returns over various periods
+# works better as separate calc from above
+port_ttl_date_ret <- port_ttl_date %>%
+  mutate(
+    pct_1d = (total_value / lag(total_value, 1) - 1),
+    pct_7d = (total_value / lag(total_value, 7) - 1),
+    pct_30d = (total_value / lag(total_value, 30) - 1),
+    pct_90d = (total_value / lag(total_value, 90) - 1),
+    pct_365d = (total_value / lag(total_value, 365) - 1)
+  )
+# test: as of latest date -> just filter in plot code
+port_ttl_date_ret_latest <- port_ttl_date_ret %>%
+  filter(date == max(date)) %>%
+  select(date, pct_1d, pct_7d, pct_30d, pct_90d, pct_365d)
+
 
 # Define server logic ----
 function(input, output, session) {
@@ -147,6 +170,7 @@ function(input, output, session) {
   
   ## various reactives - derived from above for particular purposes
   ## prep: port_ttl_dates ----
+  ## used: plot - portfolio value over time
   port_ttl_dates <- reactive({
         req(prices_long_port_filtered())
         prices_long_port_filtered() %>%
@@ -160,6 +184,19 @@ function(input, output, session) {
             ) %>%
             mutate(date = as.Date(date))
     })
+  ## prep: port_ttl_dates_ret ----
+  # for showing % returns for diff periods -> table below
+  port_ttl_dates_ret <- reactive({
+    req(port_ttl_dates())
+    port_ttl_dates() %>% mutate(
+      pct_1d = (total_value / lag(total_value, 1) - 1),
+      pct_7d = (total_value / lag(total_value, 7) - 1),
+      pct_30d = (total_value / lag(total_value, 30) - 1),
+      pct_90d = (total_value / lag(total_value, 90) - 1),
+      pct_365d = (total_value / lag(total_value, 365) - 1)
+    ) %>%
+      select(date, pct_1d, pct_7d, pct_30d, pct_90d, pct_365d)
+  })
   ## prep: port_price_latest_filtered ----
   port_price_latest_filtered <- reactive({
         req(prices_long_port_filtered())
@@ -168,22 +205,22 @@ function(input, output, session) {
     })
   ## prep: port_price_latest_fltr_lng ----
   port_price_latest_fltr_lng <- reactive({
-  port_price_latest_filtered() %>%
-    ### TEST ----
-    #port_price_latest_lng_test <- port_price_latest_test %>%
-    select(date, coin, total_invest, total_value, gain, roi) %>%
-    pivot_longer(cols = c(total_invest, total_value, gain, roi),
-                 names_to = "metric",
-                 values_to = "value") %>%
-    mutate(
-      metric = factor(metric, 
-                      levels = c("total_invest", "total_value", "gain", "roi"),
-                      labels = c("Invested", "Value", "Gain", "ROI"))
-    ) %>% mutate(
-      condition_clr = ifelse(metric %in% c("Gain","ROI") & value>0, "green",
-                             ifelse(metric %in% c("Gain","ROI") & value<0, "red", bar_colr))
-    )
-  })
+      port_price_latest_filtered() %>%
+        ### TEST ----
+        #port_price_latest_lng_test <- port_price_latest_test %>%
+        select(date, coin, total_invest, total_value, gain, roi) %>%
+        pivot_longer(cols = c(total_invest, total_value, gain, roi),
+                     names_to = "metric",
+                     values_to = "value") %>%
+        mutate(
+          metric = factor(metric, 
+                          levels = c("total_invest", "total_value", "gain", "roi"),
+                          labels = c("Invested", "Value", "Gain", "ROI"))
+        ) %>% mutate(
+          condition_clr = ifelse(metric %in% c("Gain","ROI") & value>0, "green",
+                                 ifelse(metric %in% c("Gain","ROI") & value<0, "red", bar_colr))
+        )
+      })
   
   ## prep: portfolio_ttl_return_filtered ----
   portfolio_ttl_return_filtered <- reactive({
@@ -253,6 +290,19 @@ function(input, output, session) {
       #ggplotly(p)
       p
     })
+    # plot: total value breakdown by coin ----
+  output$portValueCoinLatest <- renderPlot({
+    p <- port_price_latest_filtered() %>%
+      ## testing ----
+      #port_price_latest_test %>%
+      ggplot(aes(x = date, y = total_value, fill=reorder(coin, total_value))) +
+      geom_col(position="fill") +
+      scale_y_continuous(labels = percent_format(), expand = expansion(add = c(0, 0))) +
+      labs(x = "", y = "% of Total Value") +
+      theme(legend.title = element_blank(),
+            axis.ticks.x = element_blank())
+    p
+  })
   
     # plot: individual coin returns ----
     output$portCoinLatestPlot <- renderPlot({
@@ -361,8 +411,8 @@ function(input, output, session) {
                                  autoWidth = TRUE),
                   rownames = FALSE) %>%
         formatRound("amt_purch", digits = 2) %>%
-        formatCurrency("price_purch", "$", digits = 0) %>%
-        formatCurrency("price", "$", digits = 0) %>%
+        formatCurrency("price_purch", "$", digits = 2) %>%
+        formatCurrency("price", "$", digits = 2) %>%
         formatCurrency("total_value", "$", digits = 0) %>%
         formatCurrency("gain", "$", digits = 0) %>%
         formatPercentage("roi", digits = 1) %>%
@@ -372,5 +422,29 @@ function(input, output, session) {
           color = "white"
         )
     })
+  # TBL: portfolio returns by various date ranges ----
+  output$portfolioReturnsTable <- renderDataTable({
+    port_ttl_dates_ret() %>% 
+      filter(date == max(date)) %>% 
+      setNames(c(
+        "Returns as of", "1-day", "7-day", "30-day", "90-day", "1-year"
+      )) %>%
+      datatable(
+        class = "display compact",
+        options = list(
+          dom = 't',
+          ordering = FALSE,
+          autoWidth = TRUE
+        ),
+        rownames = FALSE
+      ) %>%
+      formatPercentage(c("1-day", "7-day", "30-day", "90-day", "1-year"), digits = 1) %>%
+      formatStyle(
+        columns = c("1-day", "7-day", "30-day", "90-day", "1-year"),
+        backgroundColor = styleInterval(0, c("red", "green")),
+        color = "white"
+      )
+    
+  })
 
-}
+} # END SERVER LOGIC ----

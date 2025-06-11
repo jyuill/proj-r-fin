@@ -36,7 +36,7 @@ fluidPage(
     theme = bs_theme(version = 5, 
                      bootswatch = "sandstone"),
     tags$head(
-      tags$link(rel= "stylesheet", type = "text/css", href = "styles.css")
+      tags$link(href = "styles.css", rel= "stylesheet", type = "text/css")
       ),
     # Set the favicon)
     # Application title - doesn't show when embedded in website
@@ -59,15 +59,28 @@ fluidPage(
               start = NULL, # to be set dynamically
               end = NULL, # to be set dynamically
               format = "yyyy-mm-dd"
+            ),
+            h4("What is this?"),
+            p(class="sider", "A basic dashboard for tracking status of a simple cryptocurrency portfolio. 
+              For reference in considering future trades. "),
+            p(class="sider", strong("'Price'"),"references closing price each day, or latest price for current day. 
+              Updated each time the app is loaded."),
+            h4("sources:"),
+            tags$ul(class="sider",
+              tags$li("Portfolio data imported from a Google Sheet"),
+              tags$li("Price data: ",a(href="https://finance.yahoo.com/", "Yahoo! finance"),
+              " via ", 
+                      a(href = "https://www.quantmod.com/", "quantmod")),
+              tags$li("App built with ", a(href = "https://shiny.rstudio.com/", "Shiny"))
             )
         ),
 
         # main panel ----
-        mainPanel(width = 9,
+        mainPanel(width = 9, class=".main-panel", # main panel
             h3("Portfolio Summary"), ## summary ----
             textOutput("portLatestNote"),
             fluidRow(
-                column(1,""),
+                #column(1,""),
                 column(6, 
                        #plotlyOutput("portfolioLatestPlot", height=ch_h, width=ch_w)
                        plotOutput("portfolioLatestPlot", height=ch_h, width=ch_w)
@@ -76,7 +89,8 @@ fluidPage(
                        #plotlyOutput("portROILatestPlot", height=ch_h, width=ch_w)
                        plotOutput("portROILatestPlot", height=ch_h, width=ch_w)
                        ),
-                column(2,"")
+                column(3,
+                       plotOutput("portValueCoinLatest", height=ch_h, width=ch_w))
             ),
             DTOutput("portfolioTotal"),
             h3("Portfolio Details by Coin"), ## coin details ----
@@ -84,6 +98,7 @@ fluidPage(
             plotOutput("portCoinLatestPlot", height=ch_h, width=ch_w),
             DTOutput("portfolioLatest"),
             h3("Portfolio Trends"), ## trends ----
+            DTOutput("portfolioReturnsTable"),
             #plotlyOutput("portValueTrendPlot"),
             plotOutput("portValueTrendPlot", width=ch_w),
             #plotlyOutput("portValueTrendCoinPlot", height=ch_hx),

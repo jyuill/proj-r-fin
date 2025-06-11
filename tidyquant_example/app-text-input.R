@@ -4,7 +4,6 @@ library(shiny)
 library(tidyquant)
 library(dplyr)
 library(ggplot2)
-library(DT)
 
 crypto_choices <- c("BTC-USD", "ETH-USD", "SOL-USD", "ADA-USD")
 
@@ -16,68 +15,25 @@ ui <- fluidPage(
       #checkboxGroupInput("symbols", "Select Cryptos:", 
       #                   choices = crypto_choices, 
       #                   selected = c("BTC-USD", "ETH-USD")),
-      #textInput("symbols", "Enter Crypto Symbols (comma-separated):", 
-      #         value = "BTC-USD, ETH-USD"),
-      fileInput("upload_csv", "Upload Portfolio CSV", 
-                accept = c(".csv")),
-      actionButton("save_btn", "Save upload"),
+      textInput("symbols", "Enter Crypto Symbols (comma-separated):", 
+               value = "BTC-USD, ETH-USD"),
       dateRangeInput("dates", "Date Range:", 
                      start = Sys.Date() - 180, end = Sys.Date()),
       sliderInput("ma_window", "Moving Average Window (days):", min = 5, max = 50, value = 20)
     ),
     
     mainPanel(
-      plotOutput("price_plot"),
-      DTOutput("portfolio_table"),
+      plotOutput("price_plot")
     )
   )
 )
 
 server <- function(input, output, session) {
-  # Default portfolio
-  default_data <- data.frame(
-    symbol = c("BTC-USD", "ETH-USD"),
-    date = as.character(Sys.Date()),
-    quantity = c(0.1, 0.5),
-    price = c(40000, 2500),
-    stringsAsFactors = FALSE
-  )
-  
-  # Reactive value for portfolio
-  portfolio <- reactiveVal(default_data)
-  
-  # Update portfolio if user uploads CSV
-  observeEvent(input$upload_csv, {
-    req(input$upload_csv)
-    tryCatch({
-      uploaded <- read.csv(input$upload_csv$datapath, stringsAsFactors = FALSE)
-      validate(
-        need(all(c("symbol", "date", "quantity", "price") %in% colnames(uploaded)),
-             "CSV must contain columns: symbol, date, quantity, price")
-      )
-      portfolio(uploaded)
-      showNotification("Portfolio updated from CSV!", type = "message")
-    }, error = function(e) {
-      showNotification("Error reading CSV: Check format", type = "error")
-    })
+  symbols <- reactive({
+    strsplit(input$symbols, ",")[[1]] %>% 
+      trimws() %>% 
+      purrr::discard(~ .x =="")
   })
-  
-  # Render editable table
-  output$portfolio_table <- renderDT({
-    datatable(portfolio(), editable = TRUE, rownames = FALSE)
-  })
-  
-  # Apply edits from the DT table
-  observeEvent(input$portfolio_table_cell_edit, {
-    info <- input$portfolio_table_cell_edit
-    updated <- portfolio()
-    #updated[info$row, info$col] <- info$value
-    col_name <- names(updated)[info$col+1]
-    #updated[info$row, col_name] <- info$value
-    updated[info$row, col_name] <- DT::coerceValue(info$value, updated[info$row, col_name])
-    portfolio(updated)
-  })
-  
   crypto_data <- reactive({
     #req(input$symbols)
     req(length(symbols()) > 0)
@@ -95,7 +51,7 @@ server <- function(input, output, session) {
   })
   
   processed_data <- reactive({
-    portfolio() %>%
+    crypto_data() %>%
       group_by(symbol) %>%
       arrange(date) %>%
       mutate(

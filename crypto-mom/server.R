@@ -53,24 +53,32 @@ sheet_item <- 'crypto-mom'
 portfolio <- read_sheet(ss=gsheet, sheet=sheet_item, skip=2)
 
 ## get prices ----
-## get latest prices - cycle thru each coin in portfolio list
-prices <- data.frame()
-for(c in 1:nrow(portfolio)){
-  # in testing, needed to reload function each time -> hopefully not in prod
-  source(here("crypto-mom/functions.R"))
-  coin <- portfolio$coin[c]
-  sym <- portfolio$symbol[c]
-  date_start <- portfolio$date_purch[c]
-  price <- price(coin, sym, date_start)
-  #prices <- bind_cols(prices, price)
-  #prices <- merge(prices, price, by="date", all=TRUE)
-  if(nrow(prices)==0) {
-    prices <- price
-  } else {
-    prices <- merge(prices, price, by="date", all=TRUE)
-    #prices <- full_join(prices, price, by="date")
-  }
-}
+# first check if prices have been fetched within the last hr - if so, use saved data
+if(file.exists(here("crypto-mom/data/prices.rds")) & 
+   file.mtime(here("crypto-mom/data/prices.rds")) > Sys.time() - 60*60) {
+  prices <- readRDS(here("crypto-mom/data/prices.rds"))
+} else {
+  # fetch price data - cycle thru each coin in portfolio list
+    prices <- data.frame()
+    for(c in 1:nrow(portfolio)){
+      # in testing, needed to reload function each time -> hopefully not in prod
+      source(here("crypto-mom/functions.R"))
+      coin <- portfolio$coin[c]
+      sym <- portfolio$symbol[c]
+      date_start <- portfolio$date_purch[c]
+      price <- price_fetch(coin, sym, date_start)
+      #prices <- bind_cols(prices, price)
+      #prices <- merge(prices, price, by="date", all=TRUE)
+      if(nrow(prices)==0) {
+        prices <- price
+      } else {
+        prices <- merge(prices, price, by="date", all=TRUE)
+        #prices <- full_join(prices, price, by="date")
+      }
+    } # end loop
+  # save prices to only refresh when needed
+  saveRDS(prices, file = here("crypto-mom/data/prices.rds"))
+  } # end if file exists
 
 ### merge with portfolio ----
 ### daily historical ----

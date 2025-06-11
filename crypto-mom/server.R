@@ -337,7 +337,7 @@ function(input, output, session) {
             facet_grid(.~coin) +
             geom_hline(yintercept = 0, linetype = "solid", color = "black") +
             scale_y_continuous(labels = dollar, expand = expansion(add = c(0, 100))) +
-            labs(x = "", y = "$") +
+            labs(x = "", y = "") +
             theme(legend.position = "none",
                   axis.ticks.x = element_blank(),
                   axis.text.x = element_text(size = font_sz),

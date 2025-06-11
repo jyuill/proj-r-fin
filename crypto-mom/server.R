@@ -20,6 +20,11 @@ library(bslib)
 theme_set(theme_bw())
 bar_colr <- "#2c3e50" # dark blue
 #bar_colr <- "blue"
+# font size for chart labels
+font_sz <- 12
+# chart titles
+chart_tsz <- 16
+chart_thj <- 0 # horizontal justification for chart titles
 
 # load functions ----
 # running locally
@@ -275,9 +280,11 @@ function(input, output, session) {
             geom_col() +
             scale_fill_identity() + # for conditional colors
             scale_y_continuous(labels = dollar, expand = expansion(add = c(0, 100))) +
-            labs(x = "", y = "$") +
+            labs(x = "", y = "") +
             theme(legend.position = "none",
-                  axis.ticks.x = element_blank())
+                  axis.ticks.x = element_blank(),
+                  axis.text.x = element_text(size = font_sz),
+                  axis.text.y = element_text(size = font_sz))
         #ggplotly(p)
         p
     })
@@ -294,7 +301,9 @@ function(input, output, session) {
         scale_y_continuous(labels = label_percent(), expand = expansion(add = c(0, 1))) +
         labs(x = "", y = "% Return") +
         theme(legend.position = "none",
-              axis.ticks.x = element_blank())
+              axis.ticks.x = element_blank(),
+              axis.text.x = element_text(size = font_sz),
+              axis.text.y = element_text(size = font_sz))
       #ggplotly(p)
       p
     })
@@ -308,7 +317,10 @@ function(input, output, session) {
       scale_y_continuous(labels = percent_format(), expand = expansion(add = c(0, 0))) +
       labs(x = "", y = "% of Total Value") +
       theme(legend.title = element_blank(),
-            axis.ticks.x = element_blank())
+            axis.ticks.x = element_blank(),
+            axis.text.x = element_text(size = font_sz),
+            legend.text = element_text(size = font_sz),
+            axis.text.y = element_text(size = font_sz))
     p
   })
   
@@ -327,11 +339,14 @@ function(input, output, session) {
             scale_y_continuous(labels = dollar, expand = expansion(add = c(0, 100))) +
             labs(x = "", y = "$") +
             theme(legend.position = "none",
-                  axis.ticks.x = element_blank())
+                  axis.ticks.x = element_blank(),
+                  axis.text.x = element_text(size = font_sz),
+                  strip.text = element_text(size = font_sz),
+                  axis.text.y = element_text(size = font_sz))
         #ggplotly(p)
         p
     })
-  
+    # plot: trends ----
     # plot: total value trend ----
     output$portValueTrendPlot <- renderPlot({
         # plot total value trend
@@ -342,8 +357,12 @@ function(input, output, session) {
             geom_line(size = 0.8, color=bar_colr) +
             geom_line(aes(y=total_invest), color="lightgreen", size=1.2)+
             scale_y_continuous(labels = dollar, expand = expansion(mult = c(0, 0.01))) +
-            labs(x = "", y = "$", title = "Total Portfolio Value Trend") +
-            theme(legend.position = "bottom")
+            labs(x = "", y = "", title = "Total Portfolio Value Trend") +
+            theme(legend.position = "bottom",
+                  #axis.ticks.x = element_blank(),
+                  axis.text.x = element_text(size = font_sz),
+                  axis.text.y = element_text(size = font_sz),
+                  plot.title = element_text(size = chart_tsz, hjust = chart_thj))
         #ggplotly(p)
         p
     })
@@ -358,8 +377,13 @@ function(input, output, session) {
             geom_line(aes(y = total_invest), color = "lightgreen", size=1.2) +
             facet_grid(coin~ ., scales="free_y") + 
             scale_y_continuous(labels = dollar, expand = expansion(mult = c(0, 0.01))) +
-            labs(x = "", y = "$", title = "Total Value Trend by Coin") +
-            theme(legend.position = "bottom")
+            labs(x = "", y = "", title = "Total Value Trend by Coin") +
+            theme(legend.position = "bottom",
+                  #axis.ticks.x = element_blank(),
+                  axis.text.x = element_text(size = font_sz),
+                  strip.text = element_text(size = font_sz),
+                  axis.text.y = element_text(size = font_sz),
+                  plot.title = element_text(size = chart_tsz, hjust = chart_thj))
         #ggplotly(p)
         p
     })
@@ -384,7 +408,10 @@ function(input, output, session) {
            y = "Relative Price (initial price = 1)",
            title = "Distribution of Price Relative to Initial Price (Normalized)") +
       theme(legend.position = "bottom",
-            axis.ticks.x = element_blank())
+            axis.ticks.x = element_blank(),
+            axis.text.x = element_text(size = font_sz),
+            axis.text.y = element_text(size = font_sz),
+            plot.title = element_text(size = chart_tsz, hjust = chart_thj))
   
     #ggplotly(plot)
     plot
